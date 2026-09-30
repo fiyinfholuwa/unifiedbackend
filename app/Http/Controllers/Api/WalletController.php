@@ -18,10 +18,24 @@ class WalletController extends Controller
 
     public function kyc(Request $request): JsonResponse
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:150'], 'idNumber' => ['required', 'string', 'min:6']]);
+        $data = $request->validate([
+            'businessName' => ['required', 'string', 'max:150'],
+            'nin' => ['required', 'digits:11'],
+            'ninDocument' => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:10240'],
+        ]);
         $w = $request->user()->wallet()->firstOrCreate([]);
-        $w->update(['kyc_status' => 'verified', 'kyc_name' => $data['name']]);
-        $this->transaction($w, 'kyc', 'Identity verification completed');
+        $documentPath = $data['ninDocument']->store('kyc-documents');
+
+        $w->update([
+            'kyc_status' => 'pending',
+            'kyc_name' => $data['businessName'],
+            'kyc_business_name' => $data['businessName'],
+            'kyc_nin' => $data['nin'],
+            'kyc_document_path' => $documentPath,
+            'kyc_submitted_at' => now(),
+            'kyc_reviewed_at' => null,
+        ]);
+        $this->transaction($w, 'kyc', 'KYC submitted for review');
 
         return $this->show($request);
     }

@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Plan;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ApiFlowTest extends TestCase
@@ -23,9 +26,12 @@ class ApiFlowTest extends TestCase
 
     public function test_wallet_and_subscription_flows_are_persisted(): void
     {
+        Storage::fake('local');
         $response = $this->postJson('/api/v1/auth/register', ['name' => 'Wallet User', 'email' => 'wallet@example.com', 'password' => 'password123']);
         $token = $response->json('token');
-        $this->withToken($token)->postJson('/api/v1/wallet/kyc', ['name' => 'Wallet User', 'idNumber' => '123456'])->assertOk();
+        $this->withToken($token)->post('/api/v1/wallet/kyc', ['businessName' => 'Wallet Business', 'nin' => '12345678901', 'ninDocument' => UploadedFile::fake()->image('nin.jpg')])->assertOk()->assertJsonPath('wallet.kyc_status', 'pending');
+        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100])->assertStatus(422)->assertJson(['message' => 'KYC_REQUIRED']);
+        User::where('email', 'wallet@example.com')->firstOrFail()->wallet()->update(['kyc_status' => 'verified']);
         $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100])->assertOk();
         $this->withToken($token)->postJson('/api/v1/wallet/payment-session/confirm')->assertJson(['success' => true]);
         $this->withToken($token)->putJson('/api/v1/subscription', ['planId' => 'pro'])->assertOk();
