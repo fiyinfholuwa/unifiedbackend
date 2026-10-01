@@ -18,13 +18,20 @@ export default function EditProfileScreen({ navigation }) {
   const [saving, setSaving] = useState(false);
   const valid = Boolean(name.trim() && email.trim().includes('@'));
 
-  const chooseAvatar = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+  const selectAvatar = async source => {
+    const picker = source === 'camera' ? ImagePicker.launchCameraAsync : ImagePicker.launchImageLibraryAsync;
+    const result = await picker({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled && result.assets?.[0]) {
       const asset = result.assets[0];
       setAvatar({ uri: asset.uri, name: asset.fileName || `profile-${Date.now()}.jpg`, mimeType: asset.mimeType || 'image/jpeg' });
     }
   };
+
+  const chooseAvatar = () => Alert.alert('Profile photo', 'Choose how you want to add your photo.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Take a photo', onPress: () => selectAvatar('camera') },
+    { text: 'Choose from device', onPress: () => selectAvatar('library') },
+  ]);
 
   const save = async () => {
     if (!valid || saving) return;
