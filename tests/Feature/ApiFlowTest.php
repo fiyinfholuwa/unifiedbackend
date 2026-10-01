@@ -30,9 +30,10 @@ class ApiFlowTest extends TestCase
         $response = $this->postJson('/api/v1/auth/register', ['name' => 'Wallet User', 'email' => 'wallet@example.com', 'password' => 'password123']);
         $token = $response->json('token');
         $this->withToken($token)->post('/api/v1/wallet/kyc', ['businessName' => 'Wallet Business', 'nin' => '12345678901', 'ninDocument' => UploadedFile::fake()->image('nin.jpg')])->assertOk()->assertJsonPath('wallet.kyc_status', 'pending');
-        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100])->assertStatus(422)->assertJson(['message' => 'KYC_REQUIRED']);
+        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100, 'method' => 'globus_bank_transfer'])->assertStatus(422)->assertJson(['message' => 'KYC_REQUIRED']);
         User::where('email', 'wallet@example.com')->firstOrFail()->wallet()->update(['kyc_status' => 'verified']);
-        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100])->assertOk();
+        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100, 'method' => 'paystack'])->assertStatus(422)->assertJson(['message' => 'PAYSTACK_NOT_CONFIGURED']);
+        $this->withToken($token)->postJson('/api/v1/wallet/payment-session', ['amount' => 100, 'method' => 'globus_bank_transfer'])->assertOk();
         $this->withToken($token)->postJson('/api/v1/wallet/payment-session/confirm')->assertJson(['success' => true]);
         $this->withToken($token)->putJson('/api/v1/subscription', ['planId' => 'pro'])->assertOk();
         $this->withToken($token)->getJson('/api/v1/wallet')->assertJsonPath('wallet.balance', 100);
@@ -51,5 +52,29 @@ class ApiFlowTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/register', ['name' => 'Plan User', 'email' => 'plan@example.com', 'password' => 'password123']);
         $this->withToken($response->json('token'))->putJson('/api/v1/subscription', ['planId' => 'pro'])->assertOk()->assertJsonPath('subscription.plan.name', 'Growth');
+    }
+
+    public function test_user_can_update_profile_and_upload_avatar(): void
+    {
+        Storage::fake('public');
+        $response = $this->postJson('/api/v1/auth/register', ['name' => 'Profile User', 'email' => 'profile@example.com', 'password' => 'password123']);
+
+        $this->withToken($response->json('token'))->patch('/api/v1/auth/profile', [
+            'name' => 'Updated Profile',
+            'email' => 'updated@example.com',
+            'bio' => 'A short profile bio.',
+            'avatar' => UploadedFile::fake()->image('avatar.jpg'),
+        ])->assertOk()->assertJsonPath('user.email', 'updated@example.com')->assertJsonPath('user.name', 'Updated Profile');
+    }
+
+    public function test_user_can_submit_support_request(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', ['name' => 'Support User', 'email' => 'support@example.com', 'password' => 'password123']);
+
+        $this->withToken($response->json('token'))->postJson('/api/v1/support-requests', [
+            'mode' => 'feedback',
+            'subject' => 'A useful idea',
+            'message' => 'Please add message templates.',
+        ])->assertOk()->assertJson(['success' => true]);
     }
 }

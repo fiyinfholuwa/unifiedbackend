@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
@@ -40,7 +41,20 @@ class AuthController extends Controller
     public function update(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->update($request->validate(['name' => ['sometimes', 'string', 'max:100'], 'email' => ['sometimes', 'email', 'unique:users,email,'.$user->id], 'bio' => ['nullable', 'string', 'max:140'], 'avatar' => ['nullable', 'string']]));
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:100'],
+            'email' => ['sometimes', 'email', 'unique:users,email,'.$user->id],
+            'bio' => ['nullable', 'string', 'max:140'],
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+        $updates = collect($data)->only(['name', 'email', 'bio'])->all();
+
+        if ($request->hasFile('avatar')) {
+            $path = $request->file('avatar')->store('avatars', 'public');
+            $updates['avatar'] = url(Storage::disk('public')->url($path));
+        }
+
+        $user->update($updates);
 
         return response()->json(['user' => $user->fresh()]);
     }

@@ -3,12 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\GlobusService;
+use App\Services\MonnifyService;
+use App\Services\PaystackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class WalletController extends Controller
 {
+    public function __construct(
+        private readonly GlobusService $globusService,
+        private readonly MonnifyService $monnifyService,
+        private readonly PaystackService $paystackService,
+    ) {}
+
     public function show(Request $request): JsonResponse
     {
         $w = $request->user()->wallet()->firstOrCreate([], ['kyc_status' => 'not_started', 'balance' => 0]);
@@ -42,11 +51,25 @@ class WalletController extends Controller
 
     public function session(Request $request): JsonResponse
     {
-        $amount = (int) $request->validate(['amount' => ['required', 'integer', 'min:10', 'max:100000']])['amount'];
+        $data = $request->validate([
+            'amount' => ['required', 'integer', 'min:10', 'max:100000'],
+            'method' => ['required', 'string', 'in:paystack,monnify,globus_bank_transfer'],
+        ]);
+        $amount = (int) $data['amount'];
         $w = $request->user()->wallet()->firstOrCreate([]);
         if ($w->kyc_status !== 'verified') {
             return response()->json(['message' => 'KYC_REQUIRED'], 422);
-        } $session = ['accountNumber' => '99'.substr((string) now()->timestamp, -8), 'amount' => $amount, 'paymentAmount' => $amount * 10, 'currency' => 'NGN', 'unitPrice' => 10, 'expiresAt' => now()->addMinutes(30)->valueOf(), 'status' => 'pending'];
+        }
+        if ($data['method'] === 'paystack' && ! $this->paystackService->isConfigured()) {
+            return response()->json(['message' => strtoupper($data['method']).'_NOT_CONFIGURED'], 422);
+        }
+        if ($data['method'] === 'monnify' && ! $this->monnifyService->isConfigured()) {
+            return response()->json(['message' => strtoupper($data['method']).'_NOT_CONFIGURED'], 422);
+        }
+        if ($data['method'] !== 'globus_bank_transfer') {
+            return response()->json(['message' => strtoupper($data['method']).'_INTEGRATION_PENDING'], 422);
+        }
+        $session = $this->globusService->createTransferSession($amount);
         $w->update(['account_number' => $session['accountNumber'], 'payment_session' => $session]);
 
         return response()->json(['session' => $session]);
@@ -56,7 +79,7 @@ class WalletController extends Controller
     {
         $w = $request->user()->wallet()->firstOrFail();
         $s = $w->payment_session;
-        if (! $s || $s['status'] !== 'pending' || $s['expiresAt'] <= now()->valueOf()) {
+        if (! $s || ! $this->globusService->confirmTransfer($s)) {
             $w->update(['account_number' => null, 'payment_session' => null]);
 
             return response()->json(['success' => false]);

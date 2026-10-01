@@ -2,6 +2,25 @@
 
 return [
 
+    'wallet' => [
+        'unit_price_ngn' => (int) env('WALLET_UNIT_PRICE_NGN', 10),
+    ],
+
+    'globus' => [
+        'demo_account_number' => env('GLOBUS_DEMO_ACCOUNT_NUMBER', '0001234567'),
+    ],
+
+    'paystack' => [
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+    ],
+
+    'monnify' => [
+        'api_key' => env('MONNIFY_API_KEY'),
+        'secret_key' => env('MONNIFY_SECRET_KEY'),
+        'contract_code' => env('MONNIFY_CONTRACT_CODE'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services
