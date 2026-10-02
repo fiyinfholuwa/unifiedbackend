@@ -1,0 +1,9 @@
+<IfModule mod_rewrite.c>
+    Options -MultiViews -Indexes
+
+    RewriteEngine On
+
+    # Keep the application entry point and public assets behind the public directory.
+    RewriteCond %{REQUEST_URI} !^/public(?:/|$)
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
