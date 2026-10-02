@@ -14,7 +14,13 @@
 /.zed
 /auth.json
 /node_modules
-/public/build
+# The production server deploys directly from the repository and does not run
+# the Node/Vite build step, so the compiled Laravel assets must be deployable.
+/public/build/*
+!/public/build/manifest.json
+!/public/build/fonts-manifest.json
+!/public/build/assets/
+!/public/build/assets/*
 /public/fonts-manifest.dev.json
 /public/hot
 /public/storage
