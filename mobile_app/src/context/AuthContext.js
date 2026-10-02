@@ -15,25 +15,33 @@ import * as SecureStore from 'expo-secure-store';
 
           useEffect(() => {
             const loadUser = async () => {
-              const [hardware, enrolled, enabled, types] = await Promise.all([
-                LocalAuthentication.hasHardwareAsync(),
-                LocalAuthentication.isEnrolledAsync(),
-                SecureStore.getItemAsync('biometric_enabled'),
-                LocalAuthentication.supportedAuthenticationTypesAsync(),
-              ]);
-              setBiometricAvailable(hardware && enrolled);
-              setBiometricEnabled(enabled === 'true');
-              setBiometricLabel(types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) ? 'Face ID' : 'Fingerprint');
+              try {
+                const [hardware, enrolled, enabled, types] = await Promise.all([
+                  LocalAuthentication.hasHardwareAsync(),
+                  LocalAuthentication.isEnrolledAsync(),
+                  SecureStore.getItemAsync('biometric_enabled'),
+                  LocalAuthentication.supportedAuthenticationTypesAsync(),
+                ]);
+                setBiometricAvailable(hardware && enrolled);
+                setBiometricEnabled(enabled === 'true');
+                setBiometricLabel(types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION) ? 'Face ID' : 'Fingerprint');
+              } catch (error) {
+                setBiometricAvailable(false);
+                setBiometricEnabled(false);
+              }
+
               const token = await AsyncStorage.getItem('@auth_token');
               if (token) {
                 try {
                   const profile = await apiService.getUserProfile();
                   setUser(profile);
-                } catch (e) { setUser(null); }
+                } catch (error) {
+                  setUser(null);
+                }
               }
               setLoading(false);
             };
-            loadUser();
+            loadUser().catch(() => setLoading(false));
           }, []);
 
           const login = async (email, password) => {

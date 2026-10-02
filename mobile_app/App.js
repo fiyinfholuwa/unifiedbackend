@@ -12,6 +12,27 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AppAlertProvider } from './src/context/AppAlertContext';
 import BrandLogo from './src/components/BrandLogo';
 
+class AppErrorBoundary extends React.Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={styles.errorScreen}>
+          <Text style={styles.errorTitle}>Unable to open Unified Messenger</Text>
+          <Text style={styles.errorMessage}>{this.state.error.message}</Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
         function ThemedNavigation() {
           const { theme, isDark } = useTheme();
           const baseTheme = isDark ? DarkTheme : DefaultTheme;
@@ -49,21 +70,26 @@ import BrandLogo from './src/components/BrandLogo';
           TextInput.defaultProps.style = [{ fontFamily: 'Inter_400Regular' }, TextInput.defaultProps.style];
 
           return (
-            <ThemeProvider>
-              <AppAlertProvider>
-                <AuthProvider>
-                  <WalletProvider>
-                    <SubscriptionProvider>
-                      <ThemedNavigation />
-                    </SubscriptionProvider>
-                  </WalletProvider>
-                </AuthProvider>
-              </AppAlertProvider>
-            </ThemeProvider>
+            <AppErrorBoundary>
+              <ThemeProvider>
+                <AppAlertProvider>
+                  <AuthProvider>
+                    <WalletProvider>
+                      <SubscriptionProvider>
+                        <ThemedNavigation />
+                      </SubscriptionProvider>
+                    </WalletProvider>
+                  </AuthProvider>
+                </AppAlertProvider>
+              </ThemeProvider>
+            </AppErrorBoundary>
           );
         }
 
 const styles = StyleSheet.create({
   startup: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F5F1FF' },
+  errorScreen: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: '#F5F1FF' },
+  errorTitle: { marginBottom: 12, color: '#241A45', fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  errorMessage: { color: '#6B617F', fontSize: 14, textAlign: 'center' },
 });
       
