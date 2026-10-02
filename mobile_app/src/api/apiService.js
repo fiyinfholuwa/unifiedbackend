@@ -1,9 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 
-// Set EXPO_PUBLIC_API_URL for a physical device, e.g. http://192.168.1.10:8000/api/v1.
-const localHost = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || `http://${localHost}:8000/api/v1`;
+// Override EXPO_PUBLIC_API_URL for local development when needed.
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://unifiechat.com/api/v1';
 
 async function request(path, options = {}) {
   const token = await AsyncStorage.getItem('@auth_token');
