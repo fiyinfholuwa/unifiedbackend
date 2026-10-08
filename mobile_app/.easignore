@@ -1,48 +1,26 @@
-# Dependencies and generated bundles
-node_modules
-node_modules/**
-**/node_modules
-**/node_modules/**
+# Local dependencies and Expo cache
+node_modules/
 .expo/
-.expo-shared/
+.gradle/
+
+# Generated Android build output and native caches
+android/.gradle/
+android/.cxx/
+android/build/
+android/app/build/
+
+# Local exports and installable artifacts
 dist/
-web-build/
-expo-env.d.ts
-*.jsbundle
+*.apk
+*.aab
 
-# Native project folders - hidden so EAS always regenerates them
-# fresh via prebuild (CNG) instead of using the locally checked-in,
-# possibly stale android/ios projects.
-android/
-android/**
-ios/
-ios/**
-
-# Local credentials and environment files
+# Logs and local-only files
+*.log
 .env
 .env.*
 !.env.example
-*.jks
-*.keystore
-!debug.keystore
 
-# Source-control and local tooling metadata
-.git/
-.qodo/
-.agents/
-.codex/
-.vscode/
-.idea/
-
-# Logs, tests, caches, and OS files
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-coverage/
-.cache/
+# Editor and operating-system files
 .DS_Store
-*.swp
-*.swo
-*.tmp
-*.temp
+.idea/
+.vscode/
