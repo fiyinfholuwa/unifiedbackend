@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ConversationController;
+use App\Http\Controllers\Api\MetaWebhookController;
 use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -18,6 +19,7 @@ Route::prefix('v1')->group(function (): void {
 
     Route::middleware('api.token')->group(function (): void {
         Route::get('auth/me', [AuthController::class, 'me']);
+        Route::delete('auth/session', [AuthController::class, 'logout']);
         Route::patch('auth/profile', [AuthController::class, 'update']);
         Route::delete('auth/profile', [AuthController::class, 'destroy']);
         Route::get('platforms', [PlatformController::class, 'index']);
@@ -37,12 +39,13 @@ Route::prefix('v1')->group(function (): void {
         Route::post('wallet/activity', [WalletController::class, 'activity']);
         Route::get('subscription', [SubscriptionController::class, 'show']);
         Route::put('subscription', [SubscriptionController::class, 'update']);
-        Route::post('subscription/usage', [SubscriptionController::class, 'usage']);
         Route::post('support-requests', [SupportController::class, 'store']);
         Route::get('social/{platform}/start', [SocialAuthController::class, 'start']);
         Route::post('social/{platform}/credentials', [SocialAuthController::class, 'credentials']);
     });
     Route::post('webhooks/telegram', TelegramWebhookController::class)->middleware('throttle:120,1');
+    Route::get('webhooks/meta', [MetaWebhookController::class, 'verify'])->middleware('throttle:60,1');
+    Route::post('webhooks/meta', [MetaWebhookController::class, 'receive'])->middleware('throttle:120,1');
     Route::get('social/callback', [SocialAuthController::class, 'callback']);
     Route::get('plans', [SubscriptionController::class, 'plans']);
 });

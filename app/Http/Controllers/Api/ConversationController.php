@@ -32,15 +32,28 @@ class ConversationController extends Controller
     {
         $c = $this->conversation($request, $id);
         $data = $request->validate(['text' => ['nullable', 'string'], 'type' => ['nullable', 'string'], 'uri' => ['nullable', 'string']]);
-
-        $providerMessage = null;
-        if ($c->platform === 'telegram' && filled($data['text'] ?? null)) {
-            $connection = $request->user()->platformConnections()->where('platform', 'telegram')->where('connected', true)->firstOrFail();
-            $providerMessage = $this->socialAuth->sendTelegramMessage($connection, $c->external_id, $data['text']);
+        $subscription = $request->user()->subscription()->with('plan')->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0]);
+        if ($subscription->period !== now()->format('Y-m')) {
+            $subscription->update(['period' => now()->format('Y-m'), 'usage' => 0]);
+            $subscription->refresh();
+        }
+        if ($subscription->plan?->message_limit !== null && $subscription->usage >= $subscription->plan->message_limit) {
+            return response()->json(['message' => 'MESSAGE_LIMIT_REACHED'], 422);
         }
 
-        $m = $c->messages()->create(['external_id' => isset($providerMessage['message_id']) ? 'telegram:'.$providerMessage['message_id'] : Str::uuid(), 'sender' => 'me', 'text' => $data['text'] ?? null, 'type' => $data['type'] ?? 'text', 'media_uri' => $data['uri'] ?? null, 'sent_at' => now()]);
+        if (! filled($data['text'] ?? null) && filled($data['uri'] ?? null)) {
+            return response()->json(['message' => 'MEDIA_MESSAGING_NOT_SUPPORTED'], 422);
+        }
+
+        $providerMessage = null;
+        if (filled($data['text'] ?? null)) {
+            $connection = $request->user()->platformConnections()->where('platform', $c->platform)->where('connected', true)->firstOrFail();
+            $providerMessage = $this->socialAuth->sendMessage($connection, $c, $data['text']);
+        }
+
+        $m = $c->messages()->create(['external_id' => isset($providerMessage['message_id']) ? $c->platform.':'.$providerMessage['message_id'] : Str::uuid(), 'sender' => 'me', 'text' => $data['text'] ?? null, 'type' => $data['type'] ?? 'text', 'media_uri' => $data['uri'] ?? null, 'sent_at' => now()]);
         $c->update(['last_message' => $m->text ?? 'Media message', 'last_message_at' => now()]);
+        $subscription->increment('usage');
 
         return response()->json(['message' => ['id' => $m->external_id, 'sender' => 'me', 'type' => $m->type, 'text' => $m->text, 'uri' => $m->media_uri, 'timestamp' => 'just now']]);
     }

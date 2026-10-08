@@ -12,9 +12,9 @@ class ApiToken extends Model
     /** @use HasFactory<ApiTokenFactory> */
     use HasFactory;
 
-    protected $fillable = ['user_id', 'token_hash', 'last_used_at'];
+    protected $fillable = ['user_id', 'token_hash', 'last_used_at', 'expires_at'];
 
-    protected $casts = ['last_used_at' => 'datetime'];
+    protected $casts = ['last_used_at' => 'datetime', 'expires_at' => 'datetime'];
 
     public function user(): BelongsTo
     {

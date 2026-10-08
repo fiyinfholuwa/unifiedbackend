@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -36,6 +39,13 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json(['user' => $request->user()]);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        $request->attributes->get('api_token')?->delete();
+
+        return response()->json(['success' => true]);
     }
 
     public function update(Request $request): JsonResponse
@@ -69,23 +79,60 @@ class AuthController extends Controller
     public function forgot(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email']]);
-        $user = User::where('email', $data['email'])->first();
-        if (! $user) {
-            return response()->json(['message' => 'No account found for that email.'], 404);
-        }
-        $user->forceFill(['remember_token' => '123456'])->save();
+        $email = Str::lower($data['email']);
+        $limiterKey = 'password-reset:'.$email.'|'.$request->ip();
 
-        return response()->json(['success' => true, 'code' => '123456']);
+        if (RateLimiter::tooManyAttempts($limiterKey, 5)) {
+            return response()->json(['message' => 'Too many reset attempts. Try again later.'], 429);
+        }
+        RateLimiter::hit($limiterKey, 3600);
+
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($user) {
+            $code = (string) random_int(100000, 999999);
+
+            DB::table('password_reset_tokens')->updateOrInsert(
+                ['email' => $user->email],
+                ['token' => Hash::make($code), 'created_at' => now()],
+            );
+
+            Mail::raw(
+                "Your UnifieChat password reset code is {$code}. It expires in 10 minutes.",
+                function ($message) use ($user): void {
+                    $message->to($user->email)->subject('Your UnifieChat password reset code');
+                },
+            );
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function reset(Request $request): JsonResponse
     {
-        $data = $request->validate(['email' => ['required', 'email'], 'code' => ['required', 'size:6'], 'password' => ['required', 'min:8']]);
-        $user = User::where('email', $data['email'])->where('remember_token', $data['code'])->first();
+        $data = $request->validate(['email' => ['required', 'email'], 'code' => ['required', 'digits:6'], 'password' => ['required', 'string', 'min:8']]);
+        $email = Str::lower($data['email']);
+        $limiterKey = 'password-reset-confirm:'.$email.'|'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($limiterKey, 10)) {
+            return response()->json(['message' => 'Too many reset attempts. Try again later.'], 429);
+        }
+        RateLimiter::hit($limiterKey, 3600);
+
+        $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
+        if (! $reset || ! $reset->created_at || now()->diffInMinutes($reset->created_at) > 10 || ! Hash::check($data['code'], $reset->token)) {
+            return response()->json(['message' => 'Invalid reset code.'], 422);
+        }
+
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
         if (! $user) {
             return response()->json(['message' => 'Invalid reset code.'], 422);
         }
-        $user->update(['password' => $data['password'], 'remember_token' => Str::random(10)]);
+
+        DB::transaction(function () use ($data, $email, $user): void {
+            $user->update(['password' => $data['password'], 'remember_token' => Str::random(40)]);
+            $user->apiTokens()->delete();
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+        });
 
         return response()->json(['success' => true]);
     }
@@ -93,9 +140,10 @@ class AuthController extends Controller
     private function respond(User $user, int $status = 200): JsonResponse
     {
         $plain = Str::random(80);
-        $user->apiTokens()->create(['token_hash' => hash('sha256', $plain)]);
+        $expiresAt = now()->addDays(30);
+        $user->apiTokens()->create(['token_hash' => hash('sha256', $plain), 'expires_at' => $expiresAt]);
 
-        return response()->json(['user' => $user->fresh(), 'token' => $plain], $status);
+        return response()->json(['user' => $user->fresh(), 'token' => $plain, 'expires_at' => $expiresAt->toIso8601String()], $status);
     }
 
     private function initializeUser(User $user): void

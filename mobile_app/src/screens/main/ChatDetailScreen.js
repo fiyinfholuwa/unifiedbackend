@@ -82,7 +82,7 @@ export default function ChatDetailScreen({ route, navigation }) {
   const listRef = useRef(null);
   const { theme } = useTheme();
   const Alert = useAppAlert();
-  const { plan, remaining, canSendMessage, recordSentMessage } = useSubscription();
+  const { plan, remaining, canSendMessage } = useSubscription();
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 200);
   const platformInfo = platforms.find(item => item.id === platformId);
@@ -129,7 +129,6 @@ export default function ChatDetailScreen({ route, navigation }) {
     setSending(true);
     try {
       const newMessage = await apiService.sendMessage(conversationId, message);
-      await recordSentMessage();
       setMessages(current => current.some(item => item.id === newMessage.id)
         ? current
         : [...current, newMessage]);
@@ -147,7 +146,6 @@ export default function ChatDetailScreen({ route, navigation }) {
     setSending(true);
     try {
       const newMessage = await apiService.sendMediaMessage(conversationId, payload);
-      await recordSentMessage();
       setMessages(current => [...current, newMessage]);
       setShowTools(false);
       setShowEmojis(false);

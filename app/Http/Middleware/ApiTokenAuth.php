@@ -18,10 +18,11 @@ class ApiTokenAuth
     {
         $plain = $request->bearerToken();
         $token = $plain ? ApiToken::with('user')->where('token_hash', hash('sha256', $plain))->first() : null;
-        if (! $token) {
+        if (! $token || ($token->expires_at && $token->expires_at->isPast())) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
         $token->update(['last_used_at' => now()]);
+        $request->attributes->set('api_token', $token);
         $request->setUserResolver(fn () => $token->user);
 
         return $next($request);

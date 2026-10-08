@@ -60,7 +60,11 @@ import * as SecureStore from 'expo-secure-store';
           };
 
           const logout = async () => {
+            await apiService.logout().catch(() => {});
             await AsyncStorage.removeItem('@auth_token');
+            await SecureStore.deleteItemAsync('biometric_enabled');
+            await SecureStore.deleteItemAsync('biometric_token');
+            setBiometricEnabled(false);
             setUser(null);
           };
 
@@ -93,7 +97,9 @@ import * as SecureStore from 'expo-secure-store';
             const result = await LocalAuthentication.authenticateAsync({ promptMessage: `Enable ${biometricLabel}`, cancelLabel: 'Cancel', disableDeviceFallback: false });
             if (!result.success) return false;
             await SecureStore.setItemAsync('biometric_enabled', 'true');
-            await SecureStore.setItemAsync('biometric_token', 'fake-jwt-token');
+            const token = await AsyncStorage.getItem('@auth_token');
+            if (!token) return false;
+            await SecureStore.setItemAsync('biometric_token', token);
             setBiometricEnabled(true);
             return true;
           };
@@ -109,8 +115,8 @@ import * as SecureStore from 'expo-secure-store';
             if (!token || !biometricAvailable || !biometricEnabled) return false;
             const result = await LocalAuthentication.authenticateAsync({ promptMessage: `Log in with ${biometricLabel}`, cancelLabel: 'Use password', disableDeviceFallback: false });
             if (!result.success) return false;
-            const profile = await apiService.getUserProfile();
             await AsyncStorage.setItem('@auth_token', token);
+            const profile = await apiService.getUserProfile();
             setUser(profile);
             return true;
           };

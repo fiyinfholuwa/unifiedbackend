@@ -22,8 +22,8 @@ const platformDescriptions = {
   instagram: 'Direct messages and story replies',
   whatsapp: 'Business chats and customer messages',
   telegram: 'Private chats, groups and channels',
-  tiktok: 'TikTok profile and approved creator data',
-  twitter: 'Direct messages and customer mentions',
+  tiktok: 'TikTok profile connection; business messaging requires TikTok Business API access',
+  twitter: 'X profile connection; direct messaging requires approved X API access',
 };
 
 export default function ConnectPlatformsScreen() {
@@ -40,9 +40,22 @@ export default function ConnectPlatformsScreen() {
 
   useEffect(() => {
     loadPlatforms();
-    const subscription = Linking.addEventListener('url', () => loadPlatforms());
+    const handleCallback = ({ url }) => {
+      loadPlatforms();
+      const query = url.split('?')[1] || '';
+      const params = query.split('&').reduce((result, item) => {
+        const [key, value] = item.split('=');
+        if (key) result[key] = decodeURIComponent(value || '');
+        return result;
+      }, {});
+      if (params.success === '0') {
+        Alert.alert('Connection failed', 'The platform did not approve the connection. Please try again.');
+      }
+    };
+    const subscription = Linking.addEventListener('url', handleCallback);
+    Linking.getInitialURL().then(url => url && handleCallback({ url })).catch(() => {});
     return () => subscription.remove();
-  }, []);
+  }, [Alert]);
 
   const loadPlatforms = async () => {
     const data = await apiService.getPlatforms();

@@ -57,8 +57,9 @@ return [
     'social' => [
         'callback' => env('SOCIAL_OAUTH_CALLBACK', env('APP_URL').'/api/v1/social/callback'),
         'mobile_redirect' => env('SOCIAL_MOBILE_REDIRECT', 'unified://oauth/callback'),
-        'facebook' => ['client_id' => env('FACEBOOK_CLIENT_ID'), 'client_secret' => env('FACEBOOK_CLIENT_SECRET'), 'scope' => env('FACEBOOK_SCOPE', 'pages_show_list,pages_messaging')],
-        'instagram' => ['client_id' => env('INSTAGRAM_CLIENT_ID', env('FACEBOOK_CLIENT_ID')), 'client_secret' => env('INSTAGRAM_CLIENT_SECRET', env('FACEBOOK_CLIENT_SECRET')), 'scope' => env('INSTAGRAM_SCOPE', 'instagram_basic,instagram_manage_messages,pages_show_list')],
+        'meta' => ['app_secret' => env('META_APP_SECRET', env('FACEBOOK_CLIENT_SECRET')), 'webhook_verify_token' => env('META_WEBHOOK_VERIFY_TOKEN')],
+        'facebook' => ['client_id' => env('FACEBOOK_CLIENT_ID'), 'client_secret' => env('FACEBOOK_CLIENT_SECRET'), 'scope' => env('FACEBOOK_SCOPE', 'pages_show_list,pages_read_engagement,pages_manage_metadata,pages_messaging')],
+        'instagram' => ['client_id' => env('INSTAGRAM_CLIENT_ID', env('FACEBOOK_CLIENT_ID')), 'client_secret' => env('INSTAGRAM_CLIENT_SECRET', env('FACEBOOK_CLIENT_SECRET')), 'scope' => env('INSTAGRAM_SCOPE', 'instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement,pages_manage_metadata')],
         'twitter' => ['client_id' => env('TWITTER_CLIENT_ID'), 'client_secret' => env('TWITTER_CLIENT_SECRET'), 'scope' => env('TWITTER_SCOPE', 'tweet.read users.read offline.access')],
         'tiktok' => ['client_key' => env('TIKTOK_CLIENT_KEY'), 'client_secret' => env('TIKTOK_CLIENT_SECRET'), 'scope' => env('TIKTOK_SCOPE', 'user.info.basic')],
         'whatsapp' => ['access_token' => env('WHATSAPP_ACCESS_TOKEN'), 'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID')],

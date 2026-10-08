@@ -32,14 +32,14 @@ export default function SubscriptionScreen({ navigation }) {
       return;
     }
     setSaving(true);
-    if (selected !== planId && selectedPlan.unitCost > 0) {
-      await wallet.spendUnits(selectedPlan.unitCost, `${selectedPlan.name} plan activated`);
-    } else if (selected !== planId) {
-      await wallet.logActivity(`${selectedPlan.name} plan activated`);
+    try {
+      await selectPlan(selected);
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Unable to activate plan', e.message);
+    } finally {
+      setSaving(false);
     }
-    await selectPlan(selected);
-    setSaving(false);
-    navigation.goBack();
   };
 
   return (
@@ -82,7 +82,7 @@ export default function SubscriptionScreen({ navigation }) {
           );
         })}
 
-        <Text style={[styles.note, { color: theme.secondaryText }]}>Wallet balance: {wallet.balance} units · Demo subscription only</Text>
+        <Text style={[styles.note, { color: theme.secondaryText }]}>Wallet balance: {wallet.balance} units · Plan charges are secured on the server</Text>
         <TouchableOpacity style={[styles.continueButton, { backgroundColor: theme.primary }]} onPress={continueWithPlan} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueText}>{selected === planId ? 'Keep current plan' : `Choose ${plans[selected].name}`}</Text>}
         </TouchableOpacity>

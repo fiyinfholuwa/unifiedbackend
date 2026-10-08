@@ -123,6 +123,7 @@ android {
     }
     packagingOptions {
         jniLibs {
+            pickFirsts += ['**/libworklets.so']
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
         }

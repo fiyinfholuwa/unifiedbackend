@@ -38,9 +38,7 @@ class PlatformController extends Controller
 
     public function connect(Request $request, string $platform): JsonResponse
     {
-        $request->user()->platformConnections()->updateOrCreate(['platform' => $platform], ['connected' => true]);
-
-        return response()->json(['success' => true]);
+        return response()->json(['message' => 'Start the platform sign-in flow to connect this account.'], 422);
     }
 
     public function disconnect(Request $request, string $platform): JsonResponse

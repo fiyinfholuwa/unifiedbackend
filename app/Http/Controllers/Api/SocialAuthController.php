@@ -31,6 +31,7 @@ class SocialAuthController extends Controller
             $success = true;
         } catch (Throwable $exception) {
             $platform = $request->string('platform')->toString() ?: $platform;
+            report($exception);
         }
 
         return redirect()->away(config('services.social.mobile_redirect').'/'.$platform.'?success='.($success ? '1' : '0'));
@@ -38,8 +39,16 @@ class SocialAuthController extends Controller
 
     public function credentials(Request $request, string $platform): JsonResponse
     {
-        $rules = $platform === 'telegram' ? ['bot_token' => ['required', 'string']] : ['access_token' => ['required', 'string'], 'phone_number_id' => ['required', 'string'], 'business_account_id' => ['required', 'string']];
         try {
+            $rules = match ($platform) {
+                'telegram' => ['bot_token' => ['required', 'string']],
+                'whatsapp' => [
+                    'access_token' => ['required', 'string'],
+                    'phone_number_id' => ['required', 'string'],
+                    'business_account_id' => ['required', 'string'],
+                ],
+                default => throw new \RuntimeException('This platform must be connected with its sign-in flow.'),
+            };
             $connection = $this->socialAuth->saveCredentials($request->user(), $platform, $request->validate($rules));
 
             return response()->json(['connected' => true, 'platform' => $connection->platform, 'account_name' => $connection->account_name]);

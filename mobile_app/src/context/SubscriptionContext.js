@@ -52,10 +52,6 @@ export function SubscriptionProvider({ children }) {
     await apiService.selectPlan(id); setPlanId(id); setHasSubscription(id !== 'free');
   };
 
-  const recordSentMessage = async () => {
-    const next = await apiService.recordSentMessage(); setUsage(next);
-  };
-
   const plan = availablePlans[planId] || availablePlans.free || plans.free;
   const canSendMessage = plan.limit === Infinity || usage < plan.limit;
   const remaining = plan.limit === Infinity ? Infinity : Math.max(plan.limit - usage, 0);
@@ -70,7 +66,6 @@ export function SubscriptionProvider({ children }) {
     hasSubscription,
     loading,
     selectPlan,
-    recordSentMessage,
   }), [plan, availablePlans, planId, usage, remaining, canSendMessage, hasSubscription, loading]);
 
   return <SubscriptionContext.Provider value={value}>{children}</SubscriptionContext.Provider>;

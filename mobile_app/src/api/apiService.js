@@ -20,6 +20,7 @@ const apiService = {
   forgotPassword: email => post('/auth/forgot-password', { email }),
   resetPassword: (email, code, password) => post('/auth/reset-password', { email, code, password }),
   getUserProfile: async () => (await request('/auth/me')).user,
+  logout: () => request('/auth/session', { method: 'DELETE' }),
   updateUserProfile: async updates => {
     if (!updates.avatar) return (await request('/auth/profile', { method: 'PATCH', body: JSON.stringify(updates) })).user;
     const body = new FormData();
@@ -57,7 +58,6 @@ const apiService = {
   getSubscription: async () => (await request('/subscription')).subscription,
   getPlans: async () => (await request('/plans')).plans,
   selectPlan: planId => request('/subscription', { method: 'PUT', body: JSON.stringify({ planId }) }),
-  recordSentMessage: async () => (await post('/subscription/usage')).usage,
   submitSupport: (mode, subject, message) => post('/support-requests', { mode, subject, message }),
 };
 
