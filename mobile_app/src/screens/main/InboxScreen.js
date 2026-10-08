@@ -54,6 +54,12 @@ export default function InboxScreen({ navigation }) {
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
+  useEffect(() => {
+    const interval = setInterval(loadConversations, 10000);
+
+    return () => clearInterval(interval);
+  }, [loadConversations]);
+
   const tabs = useMemo(() => {
     const usedPlatforms = new Set(conversations.map(item => item.platform));
     return [ALL_TAB, ...platforms.filter(platform => usedPlatforms.has(platform.id))];

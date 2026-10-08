@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PlatformController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SupportController;
+use App\Http\Controllers\Api\TelegramWebhookController;
 use App\Http\Controllers\Api\WalletController;
 use Illuminate\Support\Facades\Route;
 
@@ -41,6 +42,7 @@ Route::prefix('v1')->group(function (): void {
         Route::get('social/{platform}/start', [SocialAuthController::class, 'start']);
         Route::post('social/{platform}/credentials', [SocialAuthController::class, 'credentials']);
     });
+    Route::post('webhooks/telegram', TelegramWebhookController::class)->middleware('throttle:120,1');
     Route::get('social/callback', [SocialAuthController::class, 'callback']);
     Route::get('plans', [SubscriptionController::class, 'plans']);
 });

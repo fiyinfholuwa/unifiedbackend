@@ -20,8 +20,16 @@ class ApiFlowTest extends TestCase
         $token = $response->json('token');
         $response->assertJsonPath('user.email', 'jane@example.com');
         $this->withToken($token)->postJson('/api/v1/platforms/facebook/connect')->assertOk();
+        User::query()->where('email', 'jane@example.com')->firstOrFail()->conversations()->create(['external_id' => 'conv1', 'platform' => 'facebook', 'contact_name' => 'Jane Contact']);
         $this->withToken($token)->postJson('/api/v1/conversations/conv1/messages', ['text' => 'Persist me'])->assertOk();
         $this->withToken($token)->getJson('/api/v1/conversations/conv1/messages')->assertOk()->assertJsonFragment(['text' => 'Persist me']);
+    }
+
+    public function test_new_users_do_not_receive_demo_conversations(): void
+    {
+        $response = $this->postJson('/api/v1/auth/register', ['name' => 'Inbox User', 'email' => 'inbox@example.com', 'password' => 'password123']);
+
+        $this->withToken($response->json('token'))->getJson('/api/v1/conversations')->assertOk()->assertJson(['conversations' => []]);
     }
 
     public function test_wallet_and_subscription_flows_are_persisted(): void

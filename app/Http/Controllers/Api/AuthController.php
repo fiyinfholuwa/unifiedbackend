@@ -102,13 +102,5 @@ class AuthController extends Controller
     {
         $user->wallet()->firstOrCreate([], ['kyc_status' => 'not_started', 'balance' => 0]);
         $user->subscription()->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0]);
-        if ($user->conversations()->exists()) {
-            return;
-        }
-        $items = [['conv1', 'facebook', 'Alice Johnson', 'Hey, are we still meeting tomorrow?'], ['conv2', 'instagram', 'David Smith', 'I love your latest post!'], ['conv3', 'whatsapp', 'Maria Garcia', 'The order is confirmed.'], ['conv4', 'telegram', 'Tech Group', 'Meeting at 5 PM UTC'], ['conv5', 'facebook', 'Emily Brown', 'Can you send me the files?'], ['conv6', 'tiktok', 'Maya Wilson', 'New TikTok activity'], ['conv7', 'twitter', 'Jordan Lee', 'Thanks for getting back to me.']];
-        foreach ($items as [$external, $platform, $name, $text]) {
-            $conversation = $user->conversations()->create(['external_id' => $external, 'platform' => $platform, 'contact_name' => $name, 'last_message' => $text, 'last_message_at' => now()]);
-            $conversation->messages()->create(['external_id' => Str::uuid(), 'sender' => 'other', 'text' => $text, 'sent_at' => now()]);
-        }
     }
 }

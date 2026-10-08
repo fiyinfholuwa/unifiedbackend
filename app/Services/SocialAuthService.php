@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Conversation;
+use App\Models\Message;
 use App\Models\PlatformConnection;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
@@ -69,9 +71,15 @@ class SocialAuthService
     public function saveCredentials(User $user, string $provider, array $credentials): PlatformConnection
     {
         if ($provider === 'telegram') {
-            $response = Http::connectTimeout(3)->timeout(8)->get('https://api.telegram.org/bot'.$credentials['bot_token'].'/getMe')->throw()->json('result');
+            $telegramResponse = Http::connectTimeout(3)->timeout(8)->get('https://api.telegram.org/bot'.$credentials['bot_token'].'/getMe')->throw();
+            if ($telegramResponse->json('ok') !== true) {
+                throw new RuntimeException($telegramResponse->json('description', 'Telegram rejected the bot token.'));
+            }
+            $response = $telegramResponse->json('result', []);
+            $connection = $this->save($user, $provider, $credentials['bot_token'], $response['id'] ?? null, $response['username'] ?? $response['first_name'] ?? null, $response);
+            $this->configureTelegramWebhook($connection);
 
-            return $this->save($user, $provider, $credentials['bot_token'], $response['id'] ?? null, $response['username'] ?? $response['first_name'] ?? null, $response);
+            return $connection->refresh();
         }
         if ($provider === 'whatsapp') {
             $response = Http::withToken($credentials['access_token'])->connectTimeout(3)->timeout(8)->get('https://graph.facebook.com/v22.0/'.$credentials['phone_number_id'])->throw()->json();
@@ -79,6 +87,112 @@ class SocialAuthService
             return $this->save($user, $provider, $credentials['access_token'], $credentials['phone_number_id'], $response['display_phone_number'] ?? $response['verified_name'] ?? null, [...$response, 'phone_number_id' => $credentials['phone_number_id'], 'business_account_id' => $credentials['business_account_id']]);
         }
         throw new RuntimeException('Manual credentials are not supported for this platform.');
+    }
+
+    public function configureTelegramWebhook(PlatformConnection $connection): void
+    {
+        if ($connection->platform !== 'telegram' || ! $connection->access_token) {
+            throw new RuntimeException('A Telegram bot token is required to configure the webhook.');
+        }
+
+        $webhookUrl = rtrim((string) config('app.url'), '/').'/api/v1/webhooks/telegram';
+        if (! str_starts_with($webhookUrl, 'https://')) {
+            throw new RuntimeException('Telegram webhooks require a public HTTPS APP_URL.');
+        }
+
+        $response = Http::connectTimeout(3)
+            ->timeout(8)
+            ->post('https://api.telegram.org/bot'.$connection->access_token.'/setWebhook', [
+                'url' => $webhookUrl,
+                'secret_token' => $this->telegramWebhookSecret($connection->access_token),
+                'allowed_updates' => json_encode(['message', 'edited_message']),
+            ])
+            ->throw();
+
+        if ($response->json('ok') !== true) {
+            throw new RuntimeException($response->json('description', 'Telegram rejected the webhook configuration.'));
+        }
+
+        $connection->update(['metadata' => [...($connection->metadata ?? []), 'telegram_webhook_configured' => true]]);
+    }
+
+    public function telegramConnectionForWebhookSecret(string $secret): ?PlatformConnection
+    {
+        if ($secret === '') {
+            return null;
+        }
+
+        return PlatformConnection::query()
+            ->where('platform', 'telegram')
+            ->where('connected', true)
+            ->get()
+            ->first(fn (PlatformConnection $connection): bool => hash_equals($this->telegramWebhookSecret((string) $connection->access_token), $secret));
+    }
+
+    public function ingestTelegramUpdate(PlatformConnection $connection, array $update): ?Message
+    {
+        $payload = $update['message'] ?? $update['edited_message'] ?? null;
+        $chat = is_array($payload) ? ($payload['chat'] ?? null) : null;
+        $messageId = is_array($payload) ? ($payload['message_id'] ?? $update['update_id'] ?? null) : null;
+
+        if (! is_array($payload) || ! is_array($chat) || ! isset($chat['id']) || $messageId === null) {
+            return null;
+        }
+
+        $conversation = Conversation::query()->firstOrNew([
+            'user_id' => $connection->user_id,
+            'external_id' => (string) $chat['id'],
+            'platform' => 'telegram',
+        ]);
+        $conversation->contact_name = $this->telegramContactName($chat);
+        $conversation->avatar ??= null;
+        $conversation->save();
+
+        $externalMessageId = 'telegram:'.(string) $messageId;
+        $message = $conversation->messages()->firstOrCreate(
+            ['external_id' => $externalMessageId],
+            [
+                'sender' => 'other',
+                'type' => isset($payload['text']) || isset($payload['caption']) ? 'text' : 'media',
+                'text' => $payload['text'] ?? $payload['caption'] ?? 'Received a Telegram message.',
+                'sent_at' => isset($payload['date']) ? now()->setTimestamp((int) $payload['date']) : now(),
+            ],
+        );
+
+        if ($message->wasRecentlyCreated) {
+            $conversation->update(['last_message' => $message->text, 'last_message_at' => $message->sent_at ?? now()]);
+        }
+
+        return $message;
+    }
+
+    public function sendTelegramMessage(PlatformConnection $connection, string $chatId, string $text): array
+    {
+        $response = Http::connectTimeout(3)
+            ->timeout(8)
+            ->post('https://api.telegram.org/bot'.$connection->access_token.'/sendMessage', [
+                'chat_id' => $chatId,
+                'text' => $text,
+            ])
+            ->throw();
+
+        if ($response->json('ok') !== true) {
+            throw new RuntimeException($response->json('description', 'Telegram rejected the message.'));
+        }
+
+        return $response->json('result', []);
+    }
+
+    private function telegramWebhookSecret(string $botToken): string
+    {
+        return hash_hmac('sha256', 'unifiechat-telegram-webhook', $botToken);
+    }
+
+    private function telegramContactName(array $chat): string
+    {
+        $name = trim(implode(' ', array_filter([$chat['first_name'] ?? null, $chat['last_name'] ?? null])));
+
+        return $name !== '' ? $name : ($chat['username'] ?? 'Telegram contact');
     }
 
     private function exchangeToken(string $provider, string $code, ?string $codeVerifier = null): array

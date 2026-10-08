@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ConversationController extends Controller
 {
+    public function __construct(private SocialAuthService $socialAuth) {}
+
     public function index(Request $request): JsonResponse
     {
         $platforms = $request->user()->platformConnections()->where('connected', true)->pluck('platform');
@@ -29,7 +32,14 @@ class ConversationController extends Controller
     {
         $c = $this->conversation($request, $id);
         $data = $request->validate(['text' => ['nullable', 'string'], 'type' => ['nullable', 'string'], 'uri' => ['nullable', 'string']]);
-        $m = $c->messages()->create(['external_id' => Str::uuid(), 'sender' => 'me', 'text' => $data['text'] ?? null, 'type' => $data['type'] ?? 'text', 'media_uri' => $data['uri'] ?? null, 'sent_at' => now()]);
+
+        $providerMessage = null;
+        if ($c->platform === 'telegram' && filled($data['text'] ?? null)) {
+            $connection = $request->user()->platformConnections()->where('platform', 'telegram')->where('connected', true)->firstOrFail();
+            $providerMessage = $this->socialAuth->sendTelegramMessage($connection, $c->external_id, $data['text']);
+        }
+
+        $m = $c->messages()->create(['external_id' => isset($providerMessage['message_id']) ? 'telegram:'.$providerMessage['message_id'] : Str::uuid(), 'sender' => 'me', 'text' => $data['text'] ?? null, 'type' => $data['type'] ?? 'text', 'media_uri' => $data['uri'] ?? null, 'sent_at' => now()]);
         $c->update(['last_message' => $m->text ?? 'Media message', 'last_message_at' => now()]);
 
         return response()->json(['message' => ['id' => $m->external_id, 'sender' => 'me', 'type' => $m->type, 'text' => $m->text, 'uri' => $m->media_uri, 'timestamp' => 'just now']]);
@@ -53,7 +63,7 @@ class ConversationController extends Controller
             $m->delete();
         }
 
-return response()->json(['success' => true]);
+        return response()->json(['success' => true]);
     }
 
     private function conversation(Request $request, string $id): Conversation
