@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Conversation;
+use App\Models\Plan;
 use App\Services\SocialAuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ConversationController extends Controller
@@ -32,12 +34,34 @@ class ConversationController extends Controller
     {
         $c = $this->conversation($request, $id);
         $data = $request->validate(['text' => ['nullable', 'string'], 'type' => ['nullable', 'string'], 'uri' => ['nullable', 'string']]);
-        $subscription = $request->user()->subscription()->with('plan')->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0]);
-        if ($subscription->period !== now()->format('Y-m')) {
+        $subscription = $request->user()->subscription()->with('plan')->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0, 'free_replies_used' => 0]);
+        $plan = $subscription->plan;
+        if (($plan?->billing_type ?? 'monthly') === 'monthly' && $subscription->period !== now()->format('Y-m')) {
             $subscription->update(['period' => now()->format('Y-m'), 'usage' => 0]);
             $subscription->refresh();
         }
-        if ($subscription->plan?->message_limit !== null && $subscription->usage >= $subscription->plan->message_limit) {
+
+        $freeAllowance = Plan::query()->active()->where('billing_type', 'free')->value('reply_allowance') ?? 50;
+        $allowance = $plan?->reply_allowance ?? $plan?->message_limit;
+        $usesFreeAllowance = false;
+        $usesWalletCredit = false;
+
+        if ($plan?->billing_type === 'free') {
+            if ($subscription->free_replies_used >= ($allowance ?? $freeAllowance)) {
+                return response()->json(['message' => 'MESSAGE_LIMIT_REACHED'], 422);
+            }
+            $usesFreeAllowance = true;
+        } elseif ($plan?->billing_type === 'payg') {
+            if ($subscription->free_replies_used < $freeAllowance) {
+                $usesFreeAllowance = true;
+            } else {
+                $wallet = $request->user()->wallet()->firstOrCreate([], ['kyc_status' => 'not_started', 'balance' => 0]);
+                if ($wallet->balance < 1) {
+                    return response()->json(['message' => 'CREDITS_REQUIRED'], 422);
+                }
+                $usesWalletCredit = true;
+            }
+        } elseif ($allowance !== null && $subscription->usage >= $allowance) {
             return response()->json(['message' => 'MESSAGE_LIMIT_REACHED'], 422);
         }
 
@@ -53,9 +77,23 @@ class ConversationController extends Controller
 
         $m = $c->messages()->create(['external_id' => isset($providerMessage['message_id']) ? $c->platform.':'.$providerMessage['message_id'] : Str::uuid(), 'sender' => 'me', 'text' => $data['text'] ?? null, 'type' => $data['type'] ?? 'text', 'media_uri' => $data['uri'] ?? null, 'sent_at' => now()]);
         $c->update(['last_message' => $m->text ?? 'Media message', 'last_message_at' => now()]);
-        $subscription->increment('usage');
 
-        return response()->json(['message' => ['id' => $m->external_id, 'sender' => 'me', 'type' => $m->type, 'text' => $m->text, 'uri' => $m->media_uri, 'timestamp' => 'just now']]);
+        DB::transaction(function () use ($request, $subscription, $usesFreeAllowance, $usesWalletCredit): void {
+            $lockedSubscription = $subscription->newQuery()->lockForUpdate()->findOrFail($subscription->id);
+            $lockedSubscription->increment('usage');
+
+            if ($usesFreeAllowance) {
+                $lockedSubscription->increment('free_replies_used');
+            }
+
+            if ($usesWalletCredit) {
+                $wallet = $request->user()->wallet()->lockForUpdate()->firstOrFail();
+                $wallet->decrement('balance');
+                $wallet->transactions()->create(['type' => 'reply', 'title' => 'Successful reply credit used', 'amount' => 1, 'direction' => 'debit', 'occurred_at' => now()]);
+            }
+        });
+
+        return response()->json(['message' => ['id' => $m->external_id, 'sender' => 'me', 'type' => $m->type, 'text' => $m->text, 'uri' => $m->media_uri, 'timestamp' => 'just now'], 'billing' => ['usage' => $subscription->fresh()->usage, 'free_replies_used' => $subscription->fresh()->free_replies_used]]);
     }
 
     public function react(Request $request, string $id, string $message): JsonResponse

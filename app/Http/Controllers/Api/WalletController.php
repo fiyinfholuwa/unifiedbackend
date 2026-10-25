@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CreditBundle;
 use App\Services\GlobusService;
 use App\Services\MonnifyService;
 use App\Services\PaystackService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class WalletController extends Controller
 {
@@ -22,7 +24,7 @@ class WalletController extends Controller
     {
         $w = $request->user()->wallet()->firstOrCreate([], ['kyc_status' => 'not_started', 'balance' => 0]);
 
-        return response()->json(['wallet' => [...$w->toArray(), 'transactions' => $w->transactions()->latest('occurred_at')->get()]]);
+        return response()->json(['wallet' => [...$w->toArray(), 'transactions' => $w->transactions()->latest('occurred_at')->get(), 'unit_price_ngn' => (int) config('services.wallet.unit_price_ngn', 10)]]);
     }
 
     public function kyc(Request $request): JsonResponse
@@ -52,10 +54,12 @@ class WalletController extends Controller
     public function session(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'amount' => ['required', 'integer', 'min:10', 'max:100000'],
+            'amount' => ['required_without:bundleId', 'nullable', 'integer', 'min:10', 'max:100000'],
             'method' => ['required', 'string', 'in:paystack,monnify,globus_bank_transfer'],
+            'bundleId' => ['nullable', Rule::exists('credit_bundles', 'id')->where('is_active', true)],
         ]);
-        $amount = (int) $data['amount'];
+        $bundle = ! empty($data['bundleId']) ? CreditBundle::active()->findOrFail($data['bundleId']) : null;
+        $amount = $bundle?->credits ?? (int) $data['amount'];
         $w = $request->user()->wallet()->firstOrCreate([]);
         if ($w->kyc_status !== 'verified') {
             return response()->json(['message' => 'KYC_REQUIRED'], 422);
@@ -69,7 +73,7 @@ class WalletController extends Controller
         if ($data['method'] !== 'globus_bank_transfer') {
             return response()->json(['message' => strtoupper($data['method']).'_INTEGRATION_PENDING'], 422);
         }
-        $session = $this->globusService->createTransferSession($amount);
+        $session = $this->globusService->createTransferSession($amount, $bundle?->price_ngn, $bundle?->id);
         $w->update(['account_number' => $session['accountNumber'], 'payment_session' => $session]);
 
         return response()->json(['session' => $session]);

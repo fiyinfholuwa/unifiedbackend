@@ -50,13 +50,14 @@ const apiService = {
     body.append('ninDocument', { uri: document.uri, name: document.name || 'nin-document.jpg', type: document.mimeType || document.type || 'image/jpeg' });
     return (await request('/wallet/kyc', { method: 'POST', body })).wallet;
   },
-  createPaymentSession: async (amount, method) => (await post('/wallet/payment-session', { amount, method })).session,
+  createPaymentSession: async (amount, method, bundleId = null) => (await post('/wallet/payment-session', { amount, method, ...(bundleId ? { bundleId } : {}) })).session,
   confirmPayment: async () => (await post('/wallet/payment-session/confirm')).success,
   cancelPaymentSession: () => request('/wallet/payment-session', { method: 'DELETE' }),
   spendUnits: async (amount, title) => (await post('/wallet/spend', { amount, title })).success,
   logActivity: title => post('/wallet/activity', { title }),
   getSubscription: async () => (await request('/subscription')).subscription,
   getPlans: async () => (await request('/plans')).plans,
+  getPricing: () => request('/plans'),
   selectPlan: planId => request('/subscription', { method: 'PUT', body: JSON.stringify({ planId }) }),
   submitSupport: (mode, subject, message) => post('/support-requests', { mode, subject, message }),
 };

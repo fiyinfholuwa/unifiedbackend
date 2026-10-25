@@ -389,6 +389,30 @@ h1 span { color: var(--blue-bright); }
 .feature-card-wide a { align-self: center; color: var(--blue-bright); font-size: 11px; font-weight: 800; }
 .feature-card-wide a span { margin-left: 5px; }
 
+.pricing-section { position: relative; }
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-top: 42px; }
+.pricing-card { position: relative; display: flex; min-height: 540px; flex-direction: column; padding: 25px; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(155deg, rgba(35, 29, 75, .96), rgba(20, 17, 46, .96)); box-shadow: 0 18px 50px rgba(0, 0, 0, .15); transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.pricing-card:hover { border-color: rgba(151, 130, 255, .45); box-shadow: 0 24px 58px rgba(0, 0, 0, .25); transform: translateY(-5px); }
+.pricing-card-featured { border-color: rgba(151, 130, 255, .62); background: linear-gradient(155deg, rgba(64, 47, 132, .95), rgba(27, 21, 63, .98)); box-shadow: 0 20px 60px rgba(82, 57, 190, .22); }
+.pricing-badge { position: absolute; top: 17px; right: 17px; border-radius: 999px; background: rgba(190, 178, 255, .15); padding: 6px 9px; color: #cfc7ff; font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pricing-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.pricing-plan-name { color: #f7f8ff; font-size: 20px; font-weight: 850; letter-spacing: -.04em; }
+.pricing-best-for { max-width: 190px; margin-top: 7px; color: #9ea5c4; font-size: 11px; line-height: 1.45; }
+.pricing-dot { flex: 0 0 11px; width: 11px; height: 11px; margin-top: 5px; border-radius: 50%; box-shadow: 0 0 0 5px rgba(255, 255, 255, .05); }
+.pricing-price { margin-top: 25px; color: #fff; font-size: 28px; font-weight: 850; letter-spacing: -.05em; }
+.pricing-description { min-height: 60px; margin-top: 10px; color: #a7abc4; font-size: 12px; line-height: 1.6; }
+.pricing-features { display: grid; gap: 11px; margin-top: 23px; color: #d7d9e9; font-size: 12px; line-height: 1.45; }
+.pricing-features li { display: flex; gap: 9px; }
+.pricing-features li span { display: grid; flex: 0 0 17px; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: rgba(97, 213, 160, .14); color: #89e6b6; font-size: 10px; font-weight: 900; }
+.pricing-bundles { display: grid; gap: 6px; margin-top: 20px; border-top: 1px solid var(--line-soft); padding-top: 16px; color: #b6b6d1; font-size: 10px; }
+.pricing-bundles p { color: #e6e4ff; font-size: 11px; font-weight: 800; }
+.pricing-bundles span { display: block; }
+.pricing-cta { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: auto; padding: 13px 15px; border: 1px solid rgba(151, 130, 255, .28); border-radius: 10px; color: #cfc8ff; font-size: 12px; font-weight: 800; transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.pricing-cta:hover { border-color: rgba(190, 178, 255, .62); background: rgba(120, 87, 255, .14); transform: translateY(-2px); }
+.pricing-cta-primary { border-color: transparent; background: var(--blue); color: #fff; box-shadow: 0 10px 25px rgba(120, 87, 255, .24); }
+.pricing-cta-primary:hover { background: var(--blue-bright); }
+.pricing-note { max-width: 800px; margin: 18px auto 0; color: #7e8eaa; font-size: 11px; line-height: 1.6; text-align: center; }
+
 .audience-panel { min-height: 155px; }
 .panel-kicker { display: block; margin-bottom: 8px; color: var(--blue-bright); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .panel-kicker strong { color: #fff; }
@@ -470,6 +494,8 @@ h1 span { color: var(--blue-bright); }
     .split-intro > p { margin-top: 18px; }
     .feature-row, .feature-grid { grid-template-columns: repeat(2, 1fr); }
     .feature-card-wide { grid-column: span 2; }
+    .pricing-grid { grid-template-columns: 1fr; }
+    .pricing-card { min-height: 0; }
     .cta { flex-direction: column; align-items: stretch; margin-top: 96px; padding: 35px 24px; }
     .waitlist-form { min-width: 0; justify-content: stretch; }
     .waitlist-form input { min-width: 0; flex: 1; }

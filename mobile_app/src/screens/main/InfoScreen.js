@@ -5,11 +5,12 @@ import Icon from '@expo/vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 
 const faqs = [
-  ['Can I connect every platform on the Free plan?', 'Yes. Every plan supports all available social platforms. Plans only change how many messages you can send each month.'],
-  ['What counts as a sent message?', 'Each message you send from Unified Messenger counts once. Incoming messages do not count toward your limit.'],
-  ['When does my limit reset?', 'Message usage resets at the beginning of each calendar month.'],
-  ['What happens when I reach my limit?', 'You can still read incoming messages and use your connected accounts. Upgrade your plan to continue sending.'],
-  ['Can I cancel or change plans?', 'Yes. You can change your plan from Profile at any time.'],
+  ['What counts as a reply?', 'Each successfully sent outgoing message counts as one reply. Receiving messages, reading conversations, and viewing notifications are free.'],
+  ['Do my 50 Basic replies renew every month?', 'No. The 50 free successful replies are a one-time allowance per account.'],
+  ['What happens when I use my allowance?', 'Choose Premium at ₦5,000 per month or buy Pay-As-You-Go reply credits at ₦10 per successful reply.'],
+  ['What happens when I use all Premium replies?', 'You can purchase credits or review available plans. Additional charges are never applied automatically without your consent.'],
+  ['Are failed messages charged?', 'No. A reply is deducted only after the outgoing message is successfully sent.'],
+  ['Can I cancel Premium?', 'Yes. Cancellation follows the subscription terms, and access continues until the end of the paid billing period.'],
 ];
 
 export default function InfoScreen({ route }) {
@@ -52,7 +53,7 @@ export default function InfoScreen({ route }) {
         {[
           ['1. Your account', 'Keep your login details secure and provide accurate account information. You are responsible for activity performed through your account.'],
           ['2. Connected platforms', 'You authorize Unified Messenger to access messages from accounts you choose to connect. You can disconnect a platform at any time.'],
-          ['3. Message plans', 'All plans allow every supported social connection. Monthly sending allowances depend on your selected plan and reset each calendar month.'],
+          ['3. Message plans', 'Basic includes 50 successful replies once per account. Premium includes 1,000 successful replies per paid billing month. Pay-As-You-Go uses prepaid credits and does not require a recurring subscription.'],
           ['4. Acceptable use', 'Do not use the service for spam, harassment, unlawful content, or activity that violates the rules of a connected platform.'],
           ['5. Privacy and data', 'We use account and message data only to provide the unified messaging experience and related support.'],
           ['6. Changes', 'We may improve these terms as the service evolves. Material changes will be communicated within the application.'],

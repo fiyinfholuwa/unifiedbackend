@@ -89,10 +89,22 @@ export default function ChatDetailScreen({ route, navigation }) {
   const canSubmit = inputText.trim().length > 0 && !sending;
 
   const showLimitAlert = () => Alert.alert(
-    'Monthly limit reached',
-    `You have used all ${plan.limit} messages included in your ${plan.name} plan.`,
+    plan.billingType === 'payg' ? 'Reply credits needed' : 'Reply allowance reached',
+    plan.billingType === 'payg' ? 'Buy prepaid reply credits to continue sending.' : `You have used all ${plan.limit} replies included in your ${plan.name} plan.`,
     [{ text: 'Not now', style: 'cancel' }, { text: 'View plans', onPress: () => navigation.navigate('Subscription') }],
   );
+
+  const showSendError = error => {
+    if (error.message === 'CREDITS_REQUIRED') {
+      Alert.alert('Reply credits needed', 'Buy prepaid credits to continue sending replies.', [{ text: 'Not now', style: 'cancel' }, { text: 'Buy credits', onPress: () => navigation.navigate('Wallet') }]);
+      return;
+    }
+    if (error.message === 'MESSAGE_LIMIT_REACHED') {
+      showLimitAlert();
+      return;
+    }
+    Alert.alert('Message not sent', 'Please try sending your message again.');
+  };
 
   const scrollToLatest = useCallback(() => {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
@@ -135,7 +147,7 @@ export default function ChatDetailScreen({ route, navigation }) {
       setInputText('');
       scrollToLatest();
     } catch (error) {
-      Alert.alert('Message not sent', 'Please try sending your message again.');
+      showSendError(error);
     } finally {
       setSending(false);
     }
@@ -151,7 +163,7 @@ export default function ChatDetailScreen({ route, navigation }) {
       setShowEmojis(false);
       scrollToLatest();
     } catch (error) {
-      Alert.alert('Message not sent', 'Please try sending it again.');
+      showSendError(error);
     } finally {
       setSending(false);
     }

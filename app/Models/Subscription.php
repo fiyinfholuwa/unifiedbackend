@@ -12,7 +12,15 @@ class Subscription extends Model
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
 
-    protected $fillable = ['user_id', 'plan_id', 'usage', 'period'];
+    protected $fillable = ['user_id', 'plan_id', 'usage', 'free_replies_used', 'period'];
+
+    protected function casts(): array
+    {
+        return [
+            'usage' => 'integer',
+            'free_replies_used' => 'integer',
+        ];
+    }
 
     public function plan(): BelongsTo
     {

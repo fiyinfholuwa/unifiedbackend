@@ -3,10 +3,15 @@
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProfileController;
+use App\Models\CreditBundle;
+use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('welcome', [
+        'plans' => Plan::active()->orderBy('sort_order')->get(),
+        'creditBundles' => CreditBundle::active()->orderBy('sort_order')->get(),
+    ]);
 });
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
@@ -28,5 +33,6 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::patch('users/{user}/plan', [DashboardController::class, 'updateUserPlan'])->name('users.plan');
         Route::patch('users/{user}/status', [DashboardController::class, 'updateUserStatus'])->name('users.status');
         Route::patch('plans/{plan}', [DashboardController::class, 'updatePlan'])->name('plans.update');
+        Route::patch('credit-bundles/{creditBundle}', [DashboardController::class, 'updateBundle'])->name('credit-bundles.update');
     });
 });

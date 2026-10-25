@@ -25,6 +25,7 @@
             <nav class="main-nav" data-menu>
                 <a href="#solutions">Solutions</a>
                 <a href="#audience">Who it’s for</a>
+                <a href="#pricing">Pricing</a>
                 <a href="#faq">FAQ</a>
                 <a class="nav-cta" href="#waitlist">Start free trial <span>↗</span></a>
             </nav>
@@ -140,6 +141,54 @@
             </div>
         </section>
 
+        <section class="section shell pricing-section" id="pricing">
+            <div class="section-intro centered">
+                <div class="eyebrow">Simple pricing. Better conversations.</div>
+                <h2>More customers. Less wahala.</h2>
+                <p>Start free, then choose the plan that fits how your business talks to customers.</p>
+            </div>
+            <div class="pricing-grid">
+                @foreach ($plans as $plan)
+                    @php
+                        $priceLabel = match ($plan->billing_type) {
+                            'free' => 'Free forever',
+                            'payg' => '₦'.number_format($plan->price_per_reply_ngn ?? $plan->price_ngn).' / reply',
+                            default => '₦'.number_format($plan->price_ngn).' / month',
+                        };
+                    @endphp
+                    <article class="pricing-card {{ $plan->id === 'pro' ? 'pricing-card-featured' : '' }}">
+                        @if ($plan->id === 'pro')
+                            <span class="pricing-badge">Most popular</span>
+                        @endif
+                        <div class="pricing-card-heading">
+                            <div>
+                                <p class="pricing-plan-name">{{ $plan->name }}</p>
+                                <p class="pricing-best-for">{{ $plan->best_for }}</p>
+                            </div>
+                            <span class="pricing-dot" style="background-color: {{ $plan->color }}"></span>
+                        </div>
+                        <p class="pricing-price">{{ $priceLabel }}</p>
+                        <p class="pricing-description">{{ $plan->description }}</p>
+                        <ul class="pricing-features">
+                            @foreach ($plan->features ?? [] as $feature)
+                                <li><span>✓</span>{{ $feature }}</li>
+                            @endforeach
+                        </ul>
+                        @if ($plan->billing_type === 'payg' && $creditBundles->isNotEmpty())
+                            <div class="pricing-bundles">
+                                <p>Optional credit bundles</p>
+                                @foreach ($creditBundles as $bundle)
+                                    <span>{{ number_format($bundle->credits) }} replies · ₦{{ number_format($bundle->price_ngn) }}</span>
+                                @endforeach
+                            </div>
+                        @endif
+                        <a class="pricing-cta {{ $plan->id === 'pro' ? 'pricing-cta-primary' : '' }}" href="#waitlist">{{ $plan->billing_type === 'payg' ? 'Buy reply credits' : ($plan->billing_type === 'free' ? 'Get started for free' : 'Upgrade to Premium') }} <span>↗</span></a>
+                    </article>
+                @endforeach
+            </div>
+            <p class="pricing-note">A successful outgoing reply counts as one reply. Failed messages are not charged. Premium replies reset each paid billing cycle; unused replies do not roll over.</p>
+        </section>
+
         <section class="section shell audience-section" id="audience">
             <div class="section-intro split-intro">
                 <div><div class="eyebrow">Who it’s for</div><h2>Your customers are already messaging you.</h2></div>
@@ -176,6 +225,9 @@
                 <details open><summary>What is UnifieChat?<span>+</span></summary><p>A customer communication platform that helps small and medium-sized businesses manage messages and notifications from multiple channels in one place.</p></details>
                 <details><summary>Who is it for?<span>+</span></summary><p>Primarily SMEs that receive enquiries, orders, bookings, support requests and other messages through social and messaging platforms.</p></details>
                 <details><summary>Can I reply to customers from the platform?<span>+</span></summary><p>Yes. Read and respond without constantly switching between applications or losing the thread of a conversation.</p></details>
+                <details><summary>What counts as a reply?<span>+</span></summary><p>Each successfully sent outgoing message counts as one reply. Incoming messages, reading conversations, and viewing notifications are free.</p></details>
+                <details><summary>Do the 50 Basic replies renew every month?<span>+</span></summary><p>No. Basic includes 50 successful replies once per account. After that, choose Premium or buy Pay-As-You-Go credits.</p></details>
+                <details><summary>What happens when Premium replies run out?<span>+</span></summary><p>You can buy prepaid credits or review available plans. Additional charges are not applied automatically without your consent.</p></details>
                 <details><summary>Can my team use it?<span>+</span></summary><p>Yes. A shared inbox helps team members manage conversations and coordinate responses.</p></details>
                 <details><summary>Will I still get notifications from existing platforms?<span>+</span></summary><p>It’s designed to centralize relevant customer notifications and conversations so you can manage them from one dashboard.</p></details>
                 <details><summary>Do I need technical knowledge?<span>+</span></summary><p>No. It’s simple enough for a business owner or team member to start using without technical expertise.</p></details>

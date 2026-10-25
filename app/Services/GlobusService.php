@@ -9,7 +9,7 @@ class GlobusService
     /**
      * @return array<string, int|string>
      */
-    public function createTransferSession(int $units): array
+    public function createTransferSession(int $units, ?int $paymentAmount = null, ?string $bundleId = null): array
     {
         $unitPrice = (int) config('services.wallet.unit_price_ngn', 10);
 
@@ -20,9 +20,10 @@ class GlobusService
             'accountName' => 'Unified Messenger Wallet',
             'reference' => 'GLB-'.Str::upper(Str::random(10)),
             'amount' => $units,
-            'paymentAmount' => $units * $unitPrice,
+            'paymentAmount' => $paymentAmount ?? $units * $unitPrice,
             'currency' => 'NGN',
             'unitPrice' => $unitPrice,
+            'bundleId' => $bundleId,
             'expiresAt' => now()->addMinutes(30)->valueOf(),
             'status' => 'pending',
         ];

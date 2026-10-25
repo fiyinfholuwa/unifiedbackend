@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CreditBundleUpdateRequest;
 use App\Http\Requests\Admin\PlanUpdateRequest;
-use App\Models\Conversation;
+use App\Models\CreditBundle;
 use App\Models\Message;
 use App\Models\Plan;
 use App\Models\PlatformConnection;
@@ -99,7 +100,7 @@ class DashboardController extends Controller
 
     public function plans(): View
     {
-        return view('admin.plans', ['plans' => $this->plansQuery()->get()]);
+        return view('admin.plans', ['plans' => $this->plansQuery()->get(), 'bundles' => CreditBundle::orderBy('sort_order')->get()]);
     }
 
     public function updateSupportStatus(Request $request, SupportRequest $supportRequest): RedirectResponse|JsonResponse
@@ -175,6 +176,18 @@ class DashboardController extends Controller
 
         if ($request->expectsJson()) {
             return response()->json(['message' => $message, 'plan' => $plan->fresh()]);
+        }
+
+        return back()->with('success', $message);
+    }
+
+    public function updateBundle(CreditBundleUpdateRequest $request, CreditBundle $creditBundle): RedirectResponse|JsonResponse
+    {
+        $creditBundle->update($request->validated());
+        $message = "{$creditBundle->name} bundle updated.";
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message, 'bundle' => $creditBundle->fresh()]);
         }
 
         return back()->with('success', $message);

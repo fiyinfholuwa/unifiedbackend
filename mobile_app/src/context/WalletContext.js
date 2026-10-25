@@ -41,6 +41,7 @@ const normaliseWallet = wallet => ({
   kycStatus: wallet.kyc_status ?? wallet.kycStatus ?? 'not_started',
   kycName: wallet.kyc_name ?? wallet.kycName ?? '',
   kycBusinessName: wallet.kyc_business_name ?? wallet.kycBusinessName ?? '',
+  unitPriceNgn: Number(wallet.unit_price_ngn ?? wallet.unitPriceNgn ?? UNIT_PRICE_NGN),
   transactions: (wallet.transactions || []).map(transaction => ({
     ...transaction,
     timestamp: transaction.timestamp || transaction.occurred_at,
@@ -75,11 +76,11 @@ export function WalletProvider({ children }) {
 
   const completeKyc = async (businessName, nin, document) => { const wallet = await apiService.completeKyc(businessName, nin, document); setState({ ...state, ...normaliseWallet(wallet) }); };
 
-  const createPaymentSession = async (amount, method = 'globus_bank_transfer') => {
+  const createPaymentSession = async (amount, method = 'globus_bank_transfer', bundleId = null) => {
     if (state.kycStatus !== 'verified') throw new Error('KYC_REQUIRED');
     const units = Math.floor(Number(amount));
     if (!Number.isFinite(units) || units < 10 || units > 100000) throw new Error('INVALID_UNIT_AMOUNT');
-    const session = await apiService.createPaymentSession(units, method); setState({ ...state, accountNumber: session.accountNumber, paymentSession: session });
+    const session = await apiService.createPaymentSession(units, method, bundleId); setState({ ...state, accountNumber: session.accountNumber, paymentSession: session });
     return session;
   };
 

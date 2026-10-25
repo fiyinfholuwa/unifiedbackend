@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\CreditBundle;
 use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,13 +13,23 @@ class SubscriptionController extends Controller
 {
     public function plans(): JsonResponse
     {
-        return response()->json(['plans' => Plan::active()->orderBy('sort_order')->get()]);
+        $plans = Plan::active()->orderBy('sort_order')->get()->map(fn (Plan $plan): array => [
+            ...$plan->toArray(),
+            'display_price' => $this->displayPrice($plan),
+        ])->values();
+
+        return response()->json([
+            'plans' => $plans,
+            'credit_bundles' => CreditBundle::active()->orderBy('sort_order')->get(),
+            'wallet_unit_price_ngn' => (int) config('services.wallet.unit_price_ngn', 10),
+        ]);
     }
 
     public function show(Request $request): JsonResponse
     {
-        $s = $request->user()->subscription()->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0]);
-        if ($s->period !== now()->format('Y-m')) {
+        $s = $request->user()->subscription()->firstOrCreate([], ['plan_id' => 'free', 'period' => now()->format('Y-m'), 'usage' => 0, 'free_replies_used' => 0]);
+        $s->load('plan');
+        if (($s->plan?->billing_type ?? 'monthly') === 'monthly' && $s->period !== now()->format('Y-m')) {
             $s->update(['period' => now()->format('Y-m'), 'usage' => 0]);
         }
 
@@ -63,7 +74,7 @@ class SubscriptionController extends Controller
                     ]);
                 }
 
-                $subscription->update(['plan_id' => $plan->id]);
+                $subscription->update(['plan_id' => $plan->id, 'period' => now()->format('Y-m'), 'usage' => 0]);
 
                 return null;
             });
@@ -74,5 +85,14 @@ class SubscriptionController extends Controller
         }
 
         return $this->show($request);
+    }
+
+    private function displayPrice(Plan $plan): string
+    {
+        return match ($plan->billing_type) {
+            'free' => 'Free forever',
+            'payg' => '₦'.number_format($plan->price_per_reply_ngn ?? $plan->price_ngn).' / reply',
+            default => '₦'.number_format($plan->price_ngn).' / month',
+        };
     }
 }

@@ -7,12 +7,6 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { useWallet } from '../../context/WalletContext';
 import { useAppAlert } from '../../context/AppAlertContext';
 
-const features = {
-  free: ['Connect every social account', '50 sent messages / month', 'Unified inbox'],
-  pro: ['Connect every social account', '1,000 sent messages / month', 'Priority support', 'Advanced search'],
-  business: ['Connect every social account', 'Unlimited sent messages', 'Team-ready workspace', 'Priority support'],
-};
-
 export default function SubscriptionScreen({ navigation }) {
   const { theme } = useTheme();
   const { plans, planId, selectPlan } = useSubscription();
@@ -23,7 +17,8 @@ export default function SubscriptionScreen({ navigation }) {
 
   const continueWithPlan = async () => {
     const selectedPlan = plans[selected];
-    if (selectedPlan.unitCost > 0 && wallet.kycStatus !== 'verified') {
+    if (!selectedPlan) return;
+    if (selectedPlan.billingType === 'monthly' && selectedPlan.unitCost > 0 && wallet.kycStatus !== 'verified') {
       Alert.alert('Complete verification', 'KYC is required before activating a paid plan.', [{ text: 'Start KYC', onPress: () => navigation.navigate('Kyc') }]);
       return;
     }
@@ -49,7 +44,7 @@ export default function SubscriptionScreen({ navigation }) {
           <Icon name="star-outline" size={26} color={theme.primary} />
         </View>
         <Text style={[styles.title, { color: theme.text }]}>Choose your message plan</Text>
-        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Connect all your socials on any plan. Upgrade only when you need to send more.</Text>
+        <Text style={[styles.subtitle, { color: theme.secondaryText }]}>Simple pricing for better customer conversations. Start free and upgrade when your business needs more replies.</Text>
 
         {Object.values(plans).map(plan => {
           const active = selected === plan.id;
@@ -66,26 +61,28 @@ export default function SubscriptionScreen({ navigation }) {
                     <Text style={[styles.planName, { color: theme.text }]}>{plan.name}</Text>
                     {plan.id === 'pro' && <Text style={[styles.popular, { backgroundColor: `${plan.color}18`, color: plan.color }]}>POPULAR</Text>}
                   </View>
-                  <Text style={[styles.price, { color: plan.color }]}>{plan.price}<Text style={[styles.period, { color: theme.secondaryText }]}> / month</Text></Text>
+                  <Text style={[styles.price, { color: plan.color }]}>{plan.displayPrice || plan.price}</Text>
                 </View>
                 <View style={[styles.radio, { borderColor: active ? plan.color : theme.border, backgroundColor: active ? plan.color : 'transparent' }]}>
                   {active && <Icon name="checkmark" size={15} color="#fff" />}
                 </View>
               </View>
-              {(plan.features || features[plan.id] || []).map(feature => (
+              {(plan.features || []).map(feature => (
                 <View key={feature} style={styles.featureRow}>
                   <Icon name="checkmark-circle" size={16} color={plan.color} />
                   <Text style={[styles.feature, { color: theme.secondaryText }]}>{feature}</Text>
                 </View>
               ))}
+              {plan.description ? <Text style={[styles.description, { color: theme.secondaryText }]}>{plan.description}</Text> : null}
             </TouchableOpacity>
           );
         })}
 
-        <Text style={[styles.note, { color: theme.secondaryText }]}>Wallet balance: {wallet.balance} units · Plan charges are secured on the server</Text>
+        <Text style={[styles.note, { color: theme.secondaryText }]}>Premium includes 1,000 replies per billing month. Basic includes 50 free successful replies once per account. Failed messages are not charged.</Text>
         <TouchableOpacity style={[styles.continueButton, { backgroundColor: theme.primary }]} onPress={continueWithPlan} disabled={saving}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueText}>{selected === planId ? 'Keep current plan' : `Choose ${plans[selected].name}`}</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.continueText}>{selected === planId ? 'Keep current plan' : `Choose ${plans[selected]?.name || 'plan'}`}</Text>}
         </TouchableOpacity>
+        <TouchableOpacity style={styles.creditLink} onPress={() => navigation.navigate('Wallet')}><Text style={[styles.creditLinkText, { color: theme.tint }]}>Need flexible usage? Buy Pay-As-You-Go credits</Text></TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -100,9 +97,9 @@ const styles = StyleSheet.create({
   planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 11 },
   planNameRow: { flexDirection: 'row', alignItems: 'center', gap: 7 }, planName: { fontSize: 16, fontWeight: '800' },
   popular: { fontSize: 8, fontWeight: '900', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, letterSpacing: 0.5 },
-  price: { fontSize: 18, fontWeight: '800', marginTop: 3 }, period: { fontSize: 10.5, fontWeight: '500' },
+  price: { fontSize: 18, fontWeight: '800', marginTop: 3 }, period: { fontSize: 10.5, fontWeight: '500' }, description: { fontSize: 10.5, lineHeight: 15, marginTop: 10 },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   featureRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 7 }, feature: { fontSize: 11.5 },
-  note: { fontSize: 10.5, textAlign: 'center', marginVertical: 13 },
+  note: { fontSize: 10.5, lineHeight: 15, textAlign: 'center', marginVertical: 13 }, creditLink: { alignItems: 'center', padding: 12 }, creditLinkText: { fontSize: 11, fontWeight: '800' },
   continueButton: { height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, continueText: { color: '#fff', fontSize: 13, fontWeight: '800' },
 });
