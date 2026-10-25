@@ -382,3 +382,107 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     autoCycleTabs('.audience-tab', 5800);
     autoCycleTabs('[data-view]', 6800);
 }
+
+const adminSidebar = document.querySelector('[data-admin-sidebar]');
+const adminBackdrop = document.querySelector('[data-admin-backdrop]');
+
+const setAdminSidebar = (open) => {
+    adminSidebar?.classList.toggle('is-open', open);
+    adminBackdrop?.classList.toggle('hidden', !open);
+    document.body.classList.toggle('admin-menu-open', open);
+};
+
+document.querySelector('[data-admin-menu-open]')?.addEventListener('click', () => setAdminSidebar(true));
+document.querySelector('[data-admin-menu-close]')?.addEventListener('click', () => setAdminSidebar(false));
+adminBackdrop?.addEventListener('click', () => setAdminSidebar(false));
+document.querySelectorAll('.admin-nav-link').forEach((link) => {
+    link.addEventListener('click', () => setAdminSidebar(false));
+});
+
+const adminToast = document.querySelector('[data-admin-toast]');
+let adminToastTimer;
+
+const showAdminToast = (message, isError = false) => {
+    if (!adminToast) return;
+
+    window.clearTimeout(adminToastTimer);
+    adminToast.textContent = message;
+    adminToast.classList.toggle('is-error', isError);
+    adminToast.classList.add('is-visible');
+    adminToastTimer = window.setTimeout(() => adminToast.classList.remove('is-visible'), 3600);
+};
+
+const humanizeAdminStatus = status => status.replaceAll('_', ' ');
+
+const updateAdminStatusBadge = (badge, status) => {
+    if (!badge) return;
+
+    badge.textContent = humanizeAdminStatus(status);
+    badge.classList.remove('admin-badge-green', 'admin-badge-coral', 'admin-badge-purple');
+    badge.classList.add(['verified', 'resolved', 'closed'].includes(status) ? 'admin-badge-green' : status === 'rejected' ? 'admin-badge-coral' : 'admin-badge-purple');
+};
+
+const updateAdminFormUi = (form, payload) => {
+    const kind = form.dataset.ajaxKind;
+    const row = form.closest('[data-user-row]');
+
+    if (kind === 'support-status' || kind === 'kyc-review') {
+        updateAdminStatusBadge(form.closest('[data-support-card], [data-kyc-row]')?.querySelector('[data-status-badge]'), payload.status);
+    }
+
+    if (kind === 'user-plan' && row) {
+        row.querySelector('[data-user-plan]').textContent = form.querySelector('option:checked')?.textContent || payload.plan;
+    }
+
+    if (kind === 'user-status' && row) {
+        const isActive = Boolean(payload.is_active);
+        const statusBadge = row.querySelector('[data-user-status]');
+        statusBadge.textContent = isActive ? 'Active' : 'Inactive';
+        statusBadge.classList.toggle('admin-badge-green', isActive);
+        statusBadge.classList.toggle('admin-badge-coral', !isActive);
+        form.querySelector('input[name="is_active"]').value = isActive ? '0' : '1';
+        form.querySelector('button[type="submit"]').textContent = isActive ? 'Disable' : 'Enable';
+    }
+
+    form.querySelector('[data-form-feedback]')?.replaceChildren(document.createTextNode(payload.message || 'Saved.'));
+};
+
+document.querySelectorAll('[data-ajax-form]').forEach((form) => {
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+
+        const submitter = event.submitter;
+        const formData = new FormData(form);
+        if (submitter?.name) formData.set(submitter.name, submitter.value);
+
+        form.querySelectorAll('[data-error-for]').forEach((field) => { field.textContent = ''; });
+        const submitButton = submitter || form.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.disabled = true;
+
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: formData,
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                if (payload.errors) {
+                    Object.entries(payload.errors).forEach(([field, messages]) => {
+                        const error = form.querySelector(`[data-error-for="${field}"]`);
+                        if (error) error.textContent = messages[0];
+                    });
+                }
+                throw new Error(payload.message || 'Unable to save this change.');
+            }
+
+            updateAdminFormUi(form, payload);
+            showAdminToast(payload.message || 'Saved successfully.');
+        } catch (error) {
+            showAdminToast(error.message, true);
+        } finally {
+            if (submitButton) submitButton.disabled = false;
+        }
+    });
+});

@@ -19,7 +19,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    protected $fillable = ['name', 'email', 'password', 'avatar', 'bio'];
+    protected $fillable = ['name', 'email', 'password', 'avatar', 'bio', 'is_admin', 'is_active'];
 
     public function apiTokens(): HasMany
     {
@@ -61,6 +61,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_admin' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\WalletFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Wallet extends Model
@@ -24,6 +25,11 @@ class Wallet extends Model
             'kyc_submitted_at' => 'datetime',
             'kyc_reviewed_at' => 'datetime',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function transactions(): HasMany

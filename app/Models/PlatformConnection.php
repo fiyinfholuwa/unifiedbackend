@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\PlatformConnectionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PlatformConnection extends Model
 {
@@ -16,4 +17,9 @@ class PlatformConnection extends Model
     protected $hidden = ['access_token', 'refresh_token'];
 
     protected $casts = ['connected' => 'boolean', 'access_token' => 'encrypted', 'refresh_token' => 'encrypted', 'metadata' => 'array', 'expires_at' => 'datetime'];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

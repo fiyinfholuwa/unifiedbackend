@@ -15,6 +15,18 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        if (config('admin.demo.enabled') && app()->environment('local')) {
+            User::updateOrCreate(
+                ['email' => config('admin.demo.email')],
+                [
+                    'name' => 'Demo Admin',
+                    'password' => config('admin.demo.password'),
+                    'is_admin' => true,
+                    'is_active' => true,
+                ],
+            );
+        }
+
         // User::factory(10)->create();
 
         User::factory()->create([

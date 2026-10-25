@@ -27,7 +27,7 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
-        $user = User::where('email', $data['email'])->first();
+        $user = User::where('email', $data['email'])->where('is_active', true)->first();
         if (! $user || ! Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'Invalid email or password.'], 422);
         }

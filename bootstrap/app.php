@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\ApiTokenAuth;
+use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['api.token' => ApiTokenAuth::class]);
+        $middleware->alias(['admin' => EnsureAdmin::class, 'api.token' => ApiTokenAuth::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
