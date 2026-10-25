@@ -6,7 +6,9 @@ use App\Models\Plan;
 use App\Models\SupportRequest;
 use App\Models\User;
 use App\Models\Wallet;
+use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
 
 class AdminDashboardTest extends TestCase
@@ -32,6 +34,19 @@ class AdminDashboardTest extends TestCase
 
         $this->post(route('admin.logout'))->assertRedirect(route('admin.login'));
         $this->assertGuest();
+    }
+
+    public function test_explicit_demo_admin_seeding_is_not_restricted_to_local_environment(): void
+    {
+        Config::set('admin.demo.enabled', true);
+
+        $this->seed(DatabaseSeeder::class);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'demo-admin@unifiechat.test',
+            'is_admin' => true,
+            'is_active' => true,
+        ]);
     }
 
     public function test_admin_can_view_dashboard_metrics_and_user_pages(): void

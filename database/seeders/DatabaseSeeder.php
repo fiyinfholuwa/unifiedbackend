@@ -15,19 +15,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(PricingSeeder::class);
-
-        if (config('admin.demo.enabled') && app()->environment('local')) {
-            User::updateOrCreate(
-                ['email' => config('admin.demo.email')],
-                [
-                    'name' => 'Demo Admin',
-                    'password' => config('admin.demo.password'),
-                    'is_admin' => true,
-                    'is_active' => true,
-                ],
-            );
-        }
+        $this->call([PricingSeeder::class, DemoAdminSeeder::class]);
 
         // User::factory(10)->create();
 
