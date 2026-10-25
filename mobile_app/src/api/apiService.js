@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Override EXPO_PUBLIC_API_URL for local development when needed.
+// Override EXPO_PUBLIC_API_URL for local development or a different deployed API host.
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://unifiechat.com/api/v1';
 
 async function request(path, options = {}) {
