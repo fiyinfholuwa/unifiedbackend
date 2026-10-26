@@ -193,7 +193,6 @@ class MetaWebhookTest extends TestCase
         config([
             'services.social.facebook.client_id' => 'facebook-client',
             'services.social.facebook.client_secret' => 'facebook-secret',
-            'services.social.callback' => 'https://unifiechat.test/api/v1/social/callback',
         ]);
         $user = User::factory()->create();
         Cache::put('social-oauth:facebook-state', ['user_id' => $user->id, 'provider' => 'facebook'], now()->addMinutes(5));
@@ -243,6 +242,21 @@ class MetaWebhookTest extends TestCase
         $this->assertIsString($query['state'] ?? null);
         $this->assertSame($user->id, Cache::get('social-whatsapp-embedded:'.$query['state'])['user_id']);
         $this->get($response->json('authorization_url'))->assertOk()->assertSee('Continue with Meta');
+    }
+
+    public function test_social_oauth_callback_is_detected_from_the_current_request_url(): void
+    {
+        config([
+            'services.social.facebook.client_id' => 'facebook-client',
+            'services.social.facebook.client_secret' => 'facebook-secret',
+        ]);
+        $user = User::factory()->create();
+
+        $response = $this->withToken($this->registerToken($user))->getJson('/api/v1/social/facebook/start');
+
+        $query = [];
+        parse_str((string) parse_url($response->json('authorization_url'), PHP_URL_QUERY), $query);
+        $this->assertSame(rtrim(request()->getSchemeAndHttpHost(), '/').'/api/v1/social/callback', $query['redirect_uri']);
     }
 
     public function test_whatsapp_embedded_signup_exchanges_the_code_subscribes_the_waba_and_saves_the_connection(): void

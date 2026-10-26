@@ -682,7 +682,7 @@ class SocialAuthService
 
     private function oauthCallbackUrl(): string
     {
-        return route('social.callback');
+        return rtrim(request()->getSchemeAndHttpHost(), '/').route('social.callback', [], false);
     }
 
     private function graphUrl(string $path): string

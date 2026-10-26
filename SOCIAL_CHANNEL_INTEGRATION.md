@@ -47,14 +47,15 @@ Before testing a real customer message:
 2. Add the Messenger product.
 3. Add the app domains and privacy policy URL required by Meta.
 4. Configure the app webhook callback as `https://your-domain.example/api/v1/webhooks/meta`.
-5. Use the same value as `META_WEBHOOK_VERIFY_TOKEN` when Meta asks for the verify token.
-6. Subscribe to Page messaging events, at minimum message events needed by the inbox.
-7. Request the permissions needed by the current Facebook login flow:
+5. Add the automatically generated OAuth callback, `https://your-domain.example/api/v1/social/callback`, to the Meta app’s valid OAuth redirect URIs.
+6. Use the same value as `META_WEBHOOK_VERIFY_TOKEN` when Meta asks for the verify token.
+7. Subscribe to Page messaging events, at minimum message events needed by the inbox.
+8. Request the permissions needed by the current Facebook login flow:
    - `pages_show_list`
    - `pages_read_engagement`
    - `pages_manage_metadata`
    - `pages_messaging`
-8. Submit the relevant permissions for App Review before connecting Pages owned by people who are not app roles.
+9. Submit the relevant permissions for App Review before connecting Pages owned by people who are not app roles.
 
 ### In the mobile app
 
@@ -181,7 +182,7 @@ Run this separately for each channel:
 
 | Symptom | Most likely cause |
 | --- | --- |
-| Meta says redirect URI mismatch | The OAuth callback in the Meta app does not exactly match `SOCIAL_OAUTH_CALLBACK`. |
+| Meta says redirect URI mismatch | The Meta app does not contain the automatically generated HTTPS callback, `/api/v1/social/callback`, in its valid OAuth redirect URIs. |
 | Facebook connects but no messages arrive | Page was not subscribed to the app, webhook `messages` field is missing, or App Review/permission access is incomplete. |
 | Instagram connects but no DMs arrive | Account is personal, not linked to the Page, message access is disabled, or `instagram_manage_messages` is not approved. |
 | WhatsApp credential validation fails | Wrong token type, wrong Phone Number ID, WABA not subscribed, or Graph API version mismatch. |
