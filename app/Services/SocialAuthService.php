@@ -14,14 +14,18 @@ use RuntimeException;
 
 class SocialAuthService
 {
-    private const GRAPH_API_VERSION = 'v22.0';
-
     private const OAUTH_PROVIDERS = ['facebook', 'instagram', 'twitter', 'tiktok'];
 
     private const META_PROVIDERS = ['facebook', 'instagram', 'whatsapp'];
 
+    private const WHATSAPP_EMBEDDED_SIGNUP_TTL_MINUTES = 10;
+
     public function authorizationUrl(User $user, string $provider): string
     {
+        if ($provider === 'whatsapp') {
+            return $this->whatsappEmbeddedSignupUrl($user);
+        }
+
         if (! in_array($provider, self::OAUTH_PROVIDERS, true)) {
             throw new RuntimeException('This platform requires business credentials instead of OAuth.');
         }
@@ -40,7 +44,7 @@ class SocialAuthService
 
         $params = [
             'response_type' => 'code',
-            'redirect_uri' => config('services.social.callback'),
+            'redirect_uri' => $this->oauthCallbackUrl(),
             'state' => $state,
         ];
 
@@ -63,7 +67,86 @@ class SocialAuthService
         $params['client_id'] = $clientKey;
         $params['scope'] = config("services.social.{$provider}.scope");
 
-        return 'https://www.facebook.com/'.self::GRAPH_API_VERSION.'/dialog/oauth?'.http_build_query($params);
+        return 'https://www.facebook.com/'.$this->graphApiVersion().'/dialog/oauth?'.http_build_query($params);
+    }
+
+    public function whatsappEmbeddedSignupUrl(User $user): string
+    {
+        $configId = (string) config('services.social.whatsapp.embedded_signup_config_id');
+        if ($configId === '') {
+            throw new RuntimeException('WhatsApp Embedded Signup is not configured yet. Use manual credentials or configure WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID.');
+        }
+
+        $state = Str::random(64);
+        Cache::put('social-whatsapp-embedded:'.$state, [
+            'user_id' => $user->id,
+            'provider' => 'whatsapp',
+        ], now()->addMinutes(self::WHATSAPP_EMBEDDED_SIGNUP_TTL_MINUTES));
+
+        return route('social.whatsapp.signup', ['state' => $state]);
+    }
+
+    /**
+     * @return array{user_id:int|string, provider:string}|null
+     */
+    public function pendingWhatsAppEmbeddedSignup(string $state): ?array
+    {
+        $pending = Cache::get('social-whatsapp-embedded:'.$state);
+
+        return is_array($pending) && ($pending['provider'] ?? null) === 'whatsapp' ? $pending : null;
+    }
+
+    public function completeWhatsAppEmbeddedSignup(
+        string $state,
+        string $code,
+        string $wabaId,
+        string $phoneNumberId,
+        ?string $businessId = null,
+    ): PlatformConnection {
+        $pending = Cache::pull('social-whatsapp-embedded:'.$state);
+        if (! is_array($pending) || ($pending['provider'] ?? null) !== 'whatsapp') {
+            throw new RuntimeException('The WhatsApp connection request expired. Please try again.');
+        }
+
+        $token = Http::connectTimeout(3)
+            ->timeout(8)
+            ->get($this->graphUrl('oauth/access_token'), [
+                'client_id' => config('services.social.facebook.client_id'),
+                'client_secret' => config('services.social.facebook.client_secret'),
+                'code' => $code,
+            ])
+            ->throw()
+            ->json();
+        $accessToken = $token['access_token'] ?? null;
+        if (! is_string($accessToken) || $accessToken === '') {
+            throw new RuntimeException('Meta did not return a WhatsApp access token.');
+        }
+
+        $phone = Http::withToken($accessToken)
+            ->connectTimeout(3)
+            ->timeout(8)
+            ->get($this->graphUrl($phoneNumberId), [
+                'fields' => 'display_phone_number,verified_name,quality_rating,platform_type,is_on_biz_app',
+            ])
+            ->throw()
+            ->json();
+
+        $this->subscribeMetaAsset('whatsapp', $accessToken, $wabaId);
+
+        return $this->save(
+            User::query()->findOrFail($pending['user_id']),
+            'whatsapp',
+            $accessToken,
+            $phoneNumberId,
+            $phone['display_phone_number'] ?? $phone['verified_name'] ?? null,
+            [
+                ...$phone,
+                'phone_number_id' => $phoneNumberId,
+                'business_account_id' => $wabaId,
+                'business_id' => $businessId,
+                'embedded_signup' => true,
+            ],
+        );
     }
 
     public function complete(string $code, string $state): PlatformConnection
@@ -328,7 +411,7 @@ class SocialAuthService
                 'client_secret' => config('services.social.tiktok.client_secret'),
                 'code' => $code,
                 'grant_type' => 'authorization_code',
-                'redirect_uri' => config('services.social.callback'),
+                'redirect_uri' => $this->oauthCallbackUrl(),
             ])->throw()->json();
         }
 
@@ -340,7 +423,7 @@ class SocialAuthService
                 ->post('https://api.x.com/2/oauth2/token', [
                     'code' => $code,
                     'grant_type' => 'authorization_code',
-                    'redirect_uri' => config('services.social.callback'),
+                    'redirect_uri' => $this->oauthCallbackUrl(),
                     'code_verifier' => $codeVerifier,
                 ])
                 ->throw()
@@ -352,7 +435,7 @@ class SocialAuthService
             ->get($this->graphUrl('oauth/access_token'), [
                 'client_id' => config("services.social.{$provider}.client_id"),
                 'client_secret' => config("services.social.{$provider}.client_secret"),
-                'redirect_uri' => config('services.social.callback'),
+                'redirect_uri' => $this->oauthCallbackUrl(),
                 'code' => $code,
             ])
             ->throw()
@@ -537,14 +620,22 @@ class SocialAuthService
 
     private function sendMessengerMessage(PlatformConnection $connection, string $recipientId, string $text): array
     {
+        $endpoint = $connection->platform === 'instagram'
+            ? $connection->provider_user_id.'/messages'
+            : 'me/messages';
+        $payload = [
+            'recipient' => ['id' => $recipientId],
+            'message' => ['text' => $text],
+        ];
+
+        if ($connection->platform !== 'instagram') {
+            $payload = ['messaging_type' => 'RESPONSE', ...$payload];
+        }
+
         $response = Http::withToken($connection->access_token)
             ->connectTimeout(3)
             ->timeout(8)
-            ->post($this->graphUrl('me/messages'), [
-                'messaging_type' => 'RESPONSE',
-                'recipient' => ['id' => $recipientId],
-                'message' => ['text' => $text],
-            ])
+            ->post($this->graphUrl($endpoint), $payload)
             ->throw()
             ->json();
 
@@ -584,9 +675,19 @@ class SocialAuthService
         return [];
     }
 
+    private function graphApiVersion(): string
+    {
+        return (string) config('services.social.meta.graph_api_version', 'v22.0');
+    }
+
+    private function oauthCallbackUrl(): string
+    {
+        return route('social.callback');
+    }
+
     private function graphUrl(string $path): string
     {
-        return 'https://graph.facebook.com/'.self::GRAPH_API_VERSION.'/'.$path;
+        return 'https://graph.facebook.com/'.$this->graphApiVersion().'/'.$path;
     }
 
     private function telegramWebhookSecret(string $botToken): string

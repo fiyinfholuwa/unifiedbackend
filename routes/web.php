@@ -3,16 +3,27 @@
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProfileController;
+use App\Http\Controllers\Social\WhatsAppEmbeddedSignupController;
 use App\Models\CreditBundle;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome', [
+        'plans' => Plan::active()->orderBy('sort_order')->limit(3)->get(),
+        'creditBundles' => CreditBundle::active()->orderBy('sort_order')->get(),
+    ]);
+})->name('home');
+
+Route::get('/pricing', function () {
+    return view('pricing', [
         'plans' => Plan::active()->orderBy('sort_order')->get(),
         'creditBundles' => CreditBundle::active()->orderBy('sort_order')->get(),
     ]);
-});
+})->name('pricing');
+
+Route::get('/connect/whatsapp', [WhatsAppEmbeddedSignupController::class, 'create'])->name('social.whatsapp.signup');
+Route::post('/connect/whatsapp/complete', [WhatsAppEmbeddedSignupController::class, 'store'])->name('social.whatsapp.signup.complete');
 
 Route::prefix('admin')->name('admin.')->group(function (): void {
     Route::get('login', [AdminAuthController::class, 'create'])->name('login');

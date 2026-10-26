@@ -46,6 +46,6 @@ Route::prefix('v1')->group(function (): void {
     Route::post('webhooks/telegram', TelegramWebhookController::class)->middleware('throttle:120,1');
     Route::get('webhooks/meta', [MetaWebhookController::class, 'verify'])->middleware('throttle:60,1');
     Route::post('webhooks/meta', [MetaWebhookController::class, 'receive'])->middleware('throttle:120,1');
-    Route::get('social/callback', [SocialAuthController::class, 'callback']);
+    Route::get('social/callback', [SocialAuthController::class, 'callback'])->name('social.callback');
     Route::get('plans', [SubscriptionController::class, 'plans']);
 });

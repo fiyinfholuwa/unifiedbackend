@@ -155,6 +155,33 @@ class MetaWebhookTest extends TestCase
         $this->assertDatabaseHas('messages', ['conversation_id' => $conversation->id, 'external_id' => 'whatsapp:wamid-outbound-1', 'sender' => 'me']);
     }
 
+    public function test_instagram_reply_uses_the_connected_instagram_account_endpoint(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v22.0/instagram-123/messages' => Http::response(['message_id' => 'ig-outbound-1']),
+        ]);
+        $registration = $this->postJson('/api/v1/auth/register', ['name' => 'Instagram User', 'email' => 'instagram@example.com', 'password' => 'password123']);
+        $token = $registration->json('token');
+        $user = User::query()->where('email', 'instagram@example.com')->firstOrFail();
+        PlatformConnection::create([
+            'user_id' => $user->id,
+            'platform' => 'instagram',
+            'connected' => true,
+            'access_token' => 'page-token',
+            'provider_user_id' => 'instagram-123',
+            'metadata' => ['page_id' => 'page-123', 'instagram_business_account_id' => 'instagram-123'],
+        ]);
+        $conversation = $user->conversations()->create(['external_id' => 'instagram:customer-123', 'platform' => 'instagram', 'contact_name' => 'Instagram Customer']);
+
+        $response = $this->withToken($token)->postJson('/api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks for reaching out.']);
+
+        $response->assertOk()->assertJsonPath('message.id', 'instagram:ig-outbound-1');
+        Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://graph.facebook.com/v22.0/instagram-123/messages'
+            && ! array_key_exists('messaging_type', $request->data())
+            && $request->data()['recipient']['id'] === 'customer-123');
+    }
+
     public function test_facebook_oauth_saves_the_selected_users_page_token_and_subscribes_the_page(): void
     {
         Http::preventStrayRequests();
@@ -198,6 +225,63 @@ class MetaWebhookTest extends TestCase
         $response->assertOk()->assertJson(['connected' => true, 'platform' => 'whatsapp', 'account_name' => '+2348000000000']);
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://graph.facebook.com/v22.0/business-123/subscribed_apps');
         $this->assertDatabaseHas('platform_connections', ['user_id' => $user->id, 'platform' => 'whatsapp', 'provider_user_id' => 'phone-123']);
+    }
+
+    public function test_whatsapp_start_returns_the_embedded_signup_page(): void
+    {
+        config([
+            'services.social.whatsapp.embedded_signup_config_id' => 'embedded-config-123',
+            'services.social.facebook.client_id' => 'facebook-client',
+        ]);
+        $user = User::factory()->create();
+
+        $response = $this->withToken($this->registerToken($user))->getJson('/api/v1/social/whatsapp/start');
+
+        $response->assertOk();
+        $this->assertStringContainsString('/connect/whatsapp?state=', $response->json('authorization_url'));
+        parse_str((string) parse_url($response->json('authorization_url'), PHP_URL_QUERY), $query);
+        $this->assertIsString($query['state'] ?? null);
+        $this->assertSame($user->id, Cache::get('social-whatsapp-embedded:'.$query['state'])['user_id']);
+        $this->get($response->json('authorization_url'))->assertOk()->assertSee('Continue with Meta');
+    }
+
+    public function test_whatsapp_embedded_signup_exchanges_the_code_subscribes_the_waba_and_saves_the_connection(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://graph.facebook.com/v22.0/oauth/access_token*' => Http::response(['access_token' => 'embedded-token']),
+            'https://graph.facebook.com/v22.0/phone-123*' => Http::response(['display_phone_number' => '+2348000000000', 'verified_name' => 'Ada Store']),
+            'https://graph.facebook.com/v22.0/business-123/subscribed_apps' => Http::response(['success' => true]),
+        ]);
+        config([
+            'services.social.facebook.client_id' => 'facebook-client',
+            'services.social.facebook.client_secret' => 'facebook-secret',
+            'services.social.mobile_redirect' => 'unified://oauth/callback',
+        ]);
+        $user = User::factory()->create();
+        Cache::put('social-whatsapp-embedded:embedded-state', ['user_id' => $user->id, 'provider' => 'whatsapp'], now()->addMinutes(5));
+
+        $response = $this->postJson('/connect/whatsapp/complete', [
+            'state' => 'embedded-state',
+            'code' => 'short-lived-code',
+            'waba_id' => 'business-123',
+            'phone_number_id' => 'phone-123',
+            'business_id' => 'meta-business-123',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'connected' => true,
+            'platform' => 'whatsapp',
+            'account_name' => '+2348000000000',
+            'redirect_url' => 'unified://oauth/callback/whatsapp?success=1',
+        ]);
+        Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://graph.facebook.com/v22.0/business-123/subscribed_apps');
+        $this->assertDatabaseHas('platform_connections', [
+            'user_id' => $user->id,
+            'platform' => 'whatsapp',
+            'provider_user_id' => 'phone-123',
+        ]);
+        $this->assertSame('embedded-token', PlatformConnection::query()->where('user_id', $user->id)->firstOrFail()->access_token);
     }
 
     private function registerToken(User $user): string

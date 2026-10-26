@@ -13,7 +13,7 @@
 
     <header class="site-header">
         <div class="shell header-inner">
-            <a class="brand" href="#top" aria-label="UnifieChat home">
+            <a class="brand" href="{{ route('home') }}#top" aria-label="UnifieChat home">
                 <span class="brand-mark">U</span>
                 <span>UnifieChat</span>
             </a>
@@ -25,7 +25,7 @@
             <nav class="main-nav" data-menu>
                 <a href="#solutions">Solutions</a>
                 <a href="#audience">Who it’s for</a>
-                <a href="#pricing">Pricing</a>
+                <a href="{{ route('pricing') }}">Pricing</a>
                 <a href="#faq">FAQ</a>
                 <a class="nav-cta" href="#waitlist">Start free trial <span>↗</span></a>
             </nav>
@@ -142,49 +142,16 @@
         </section>
 
         <section class="section shell pricing-section" id="pricing">
-            <div class="section-intro centered">
-                <div class="eyebrow">Simple pricing. Better conversations.</div>
-                <h2>More customers. Less wahala.</h2>
-                <p>Start free, then choose the plan that fits how your business talks to customers.</p>
+            <div class="pricing-intro">
+                <div class="section-intro centered">
+                    <div class="eyebrow">Simple pricing. Better conversations.</div>
+                    <h2>More customers. Less wahala.</h2>
+                    <p>Start free, then choose the plan that fits how your business talks to customers.</p>
+                </div>
+                <a class="pricing-view-all" href="{{ route('pricing') }}">View all pricing <span>↗</span></a>
             </div>
             <div class="pricing-grid">
-                @foreach ($plans as $plan)
-                    @php
-                        $priceLabel = match ($plan->billing_type) {
-                            'free' => 'Free forever',
-                            'payg' => '₦'.number_format($plan->price_per_reply_ngn ?? $plan->price_ngn).' / reply',
-                            default => '₦'.number_format($plan->price_ngn).' / month',
-                        };
-                    @endphp
-                    <article class="pricing-card {{ $plan->id === 'pro' ? 'pricing-card-featured' : '' }}">
-                        @if ($plan->id === 'pro')
-                            <span class="pricing-badge">Most popular</span>
-                        @endif
-                        <div class="pricing-card-heading">
-                            <div>
-                                <p class="pricing-plan-name">{{ $plan->name }}</p>
-                                <p class="pricing-best-for">{{ $plan->best_for }}</p>
-                            </div>
-                            <span class="pricing-dot" style="background-color: {{ $plan->color }}"></span>
-                        </div>
-                        <p class="pricing-price">{{ $priceLabel }}</p>
-                        <p class="pricing-description">{{ $plan->description }}</p>
-                        <ul class="pricing-features">
-                            @foreach ($plan->features ?? [] as $feature)
-                                <li><span>✓</span>{{ $feature }}</li>
-                            @endforeach
-                        </ul>
-                        @if ($plan->billing_type === 'payg' && $creditBundles->isNotEmpty())
-                            <div class="pricing-bundles">
-                                <p>Optional credit bundles</p>
-                                @foreach ($creditBundles as $bundle)
-                                    <span>{{ number_format($bundle->credits) }} replies · ₦{{ number_format($bundle->price_ngn) }}</span>
-                                @endforeach
-                            </div>
-                        @endif
-                        <a class="pricing-cta {{ $plan->id === 'pro' ? 'pricing-cta-primary' : '' }}" href="#waitlist">{{ $plan->billing_type === 'payg' ? 'Buy reply credits' : ($plan->billing_type === 'free' ? 'Get started for free' : 'Upgrade to Premium') }} <span>↗</span></a>
-                    </article>
-                @endforeach
+                @include('partials.pricing-cards', ['plans' => $plans, 'creditBundles' => $creditBundles])
             </div>
             <p class="pricing-note">A successful outgoing reply counts as one reply. Failed messages are not charged. Premium replies reset each paid billing cycle; unused replies do not roll over.</p>
         </section>
@@ -241,7 +208,7 @@
     </main>
 
     <footer class="site-footer shell">
-        <a class="brand" href="#top"><span class="brand-mark">U</span><span>UnifieChat</span></a>
+        <a class="brand" href="{{ route('home') }}#top"><span class="brand-mark">U</span><span>UnifieChat</span></a>
         <p>© {{ date('Y') }} UnifieChat. All rights reserved.</p>
         <p class="footer-tagline">One inbox for every customer message.</p>
     </footer>

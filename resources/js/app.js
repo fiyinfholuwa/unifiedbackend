@@ -266,6 +266,8 @@ const renderComparison = (view) => {
     const content = comparisonContent[view];
     const list = document.querySelector('[data-comparison-list]');
 
+    if (!list) return;
+
     document.querySelector('[data-comparison-status]').textContent = content.status;
     document.querySelector('[data-comparison-count]').textContent = content.count;
     list.replaceChildren();
