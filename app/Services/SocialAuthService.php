@@ -233,7 +233,7 @@ class SocialAuthService
             throw new RuntimeException('A Telegram bot token is required to configure the webhook.');
         }
 
-        $webhookUrl = rtrim((string) config('app.url'), '/').'/api/v1/webhooks/telegram';
+        $webhookUrl = rtrim((string) config('app.url'), '/').'/unified-api/v1/webhooks/telegram';
         if (! str_starts_with($webhookUrl, 'https://')) {
             throw new RuntimeException('Telegram webhooks require a public HTTPS APP_URL.');
         }

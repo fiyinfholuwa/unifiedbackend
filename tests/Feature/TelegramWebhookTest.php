@@ -37,8 +37,8 @@ class TelegramWebhookTest extends TestCase
             ],
         ];
 
-        $firstResponse = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $secret)->postJson('/api/v1/webhooks/telegram', $payload);
-        $secondResponse = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $secret)->postJson('/api/v1/webhooks/telegram', $payload);
+        $firstResponse = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $secret)->postJson('/unified-api/v1/webhooks/telegram', $payload);
+        $secondResponse = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', $secret)->postJson('/unified-api/v1/webhooks/telegram', $payload);
 
         $firstResponse->assertOk()->assertJson(['ok' => true]);
         $secondResponse->assertOk()->assertJson(['ok' => true]);
@@ -65,7 +65,7 @@ class TelegramWebhookTest extends TestCase
             'access_token' => '123456:telegram-token',
         ]);
 
-        $response = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', 'wrong-secret')->postJson('/api/v1/webhooks/telegram', [
+        $response = $this->withHeader('X-Telegram-Bot-Api-Secret-Token', 'wrong-secret')->postJson('/unified-api/v1/webhooks/telegram', [
             'update_id' => 7002,
             'message' => ['message_id' => 43, 'chat' => ['id' => 998878], 'text' => 'Should not arrive'],
         ]);
@@ -84,14 +84,14 @@ class TelegramWebhookTest extends TestCase
             'https://api.telegram.org/bot123456:telegram-token/setWebhook' => Http::response(['ok' => true, 'result' => true]),
         ]);
 
-        $registration = $this->postJson('/api/v1/auth/register', ['name' => 'Telegram User', 'email' => 'telegram@example.com', 'password' => 'password123']);
+        $registration = $this->postJson('/unified-api/v1/auth/register', ['name' => 'Telegram User', 'email' => 'telegram@example.com', 'password' => 'password123']);
         $token = $registration->json('token');
 
-        $response = $this->withToken($token)->postJson('/api/v1/social/telegram/credentials', ['bot_token' => '123456:telegram-token']);
+        $response = $this->withToken($token)->postJson('/unified-api/v1/social/telegram/credentials', ['bot_token' => '123456:telegram-token']);
 
         $response->assertOk()->assertJson(['connected' => true, 'platform' => 'telegram', 'account_name' => 'unifiechat_bot']);
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://api.telegram.org/bot123456:telegram-token/setWebhook'
-            && $request->data()['url'] === 'https://unifiechat.test/api/v1/webhooks/telegram');
+            && $request->data()['url'] === 'https://unifiechat.test/unified-api/v1/webhooks/telegram');
         $this->assertTrue((bool) PlatformConnection::query()->firstOrFail()->metadata['telegram_webhook_configured']);
     }
 
@@ -102,13 +102,13 @@ class TelegramWebhookTest extends TestCase
             'https://api.telegram.org/bot123456:telegram-token/sendMessage' => Http::response(['ok' => true, 'result' => ['message_id' => 99]]),
         ]);
 
-        $registration = $this->postJson('/api/v1/auth/register', ['name' => 'Reply User', 'email' => 'reply@example.com', 'password' => 'password123']);
+        $registration = $this->postJson('/unified-api/v1/auth/register', ['name' => 'Reply User', 'email' => 'reply@example.com', 'password' => 'password123']);
         $token = $registration->json('token');
         $user = User::query()->where('email', 'reply@example.com')->firstOrFail();
         PlatformConnection::create(['user_id' => $user->id, 'platform' => 'telegram', 'connected' => true, 'access_token' => '123456:telegram-token']);
         $conversation = $user->conversations()->create(['external_id' => '998877', 'platform' => 'telegram', 'contact_name' => 'Ada Lovelace']);
 
-        $response = $this->withToken($token)->postJson('/api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks, I will check this now.']);
+        $response = $this->withToken($token)->postJson('/unified-api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks, I will check this now.']);
 
         $response->assertOk()->assertJsonPath('message.id', 'telegram:99');
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://api.telegram.org/bot123456:telegram-token/sendMessage'

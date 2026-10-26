@@ -19,7 +19,7 @@ class MetaWebhookTest extends TestCase
     {
         config(['services.social.meta.webhook_verify_token' => 'verify-me']);
 
-        $response = $this->get('/api/v1/webhooks/meta?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=challenge-123');
+        $response = $this->get('/unified-api/v1/webhooks/meta?hub.mode=subscribe&hub.verify_token=verify-me&hub.challenge=challenge-123');
 
         $response->assertOk()->assertSeeText('challenge-123');
     }
@@ -59,8 +59,8 @@ class MetaWebhookTest extends TestCase
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
         $signature = 'sha256='.hash_hmac('sha256', $body, 'meta-app-secret');
 
-        $first = $this->call('POST', '/api/v1/webhooks/meta', [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_HUB_SIGNATURE_256' => $signature], $body);
-        $second = $this->call('POST', '/api/v1/webhooks/meta', [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_HUB_SIGNATURE_256' => $signature], $body);
+        $first = $this->call('POST', '/unified-api/v1/webhooks/meta', [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_HUB_SIGNATURE_256' => $signature], $body);
+        $second = $this->call('POST', '/unified-api/v1/webhooks/meta', [], [], [], ['CONTENT_TYPE' => 'application/json', 'HTTP_X_HUB_SIGNATURE_256' => $signature], $body);
 
         $first->assertOk()->assertJson(['received' => true]);
         $second->assertOk()->assertJson(['received' => true]);
@@ -82,7 +82,7 @@ class MetaWebhookTest extends TestCase
             'metadata' => ['phone_number_id' => 'phone-123', 'business_account_id' => 'business-123'],
         ]);
 
-        $response = $this->withHeader('X-Hub-Signature-256', 'sha256=wrong')->postJson('/api/v1/webhooks/meta', [
+        $response = $this->withHeader('X-Hub-Signature-256', 'sha256=wrong')->postJson('/unified-api/v1/webhooks/meta', [
             'object' => 'whatsapp_business_account',
             'entry' => [],
         ]);
@@ -118,7 +118,7 @@ class MetaWebhookTest extends TestCase
         ];
         $body = json_encode($payload, JSON_THROW_ON_ERROR);
 
-        $response = $this->call('POST', '/api/v1/webhooks/meta', [], [], [], [
+        $response = $this->call('POST', '/unified-api/v1/webhooks/meta', [], [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, 'meta-app-secret'),
         ], $body);
@@ -133,7 +133,7 @@ class MetaWebhookTest extends TestCase
         Http::fake([
             'https://graph.facebook.com/v22.0/phone-123/messages' => Http::response(['messages' => [['id' => 'wamid-outbound-1']]]),
         ]);
-        $registration = $this->postJson('/api/v1/auth/register', ['name' => 'WhatsApp User', 'email' => 'whatsapp@example.com', 'password' => 'password123']);
+        $registration = $this->postJson('/unified-api/v1/auth/register', ['name' => 'WhatsApp User', 'email' => 'whatsapp@example.com', 'password' => 'password123']);
         $token = $registration->json('token');
         $user = User::query()->where('email', 'whatsapp@example.com')->firstOrFail();
         PlatformConnection::create([
@@ -146,7 +146,7 @@ class MetaWebhookTest extends TestCase
         ]);
         $conversation = $user->conversations()->create(['external_id' => 'whatsapp:2348000000000', 'platform' => 'whatsapp', 'contact_name' => 'Ada Lovelace']);
 
-        $response = $this->withToken($token)->postJson('/api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks, I will check this now.']);
+        $response = $this->withToken($token)->postJson('/unified-api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks, I will check this now.']);
 
         $response->assertOk()->assertJsonPath('message.id', 'whatsapp:wamid-outbound-1');
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://graph.facebook.com/v22.0/phone-123/messages'
@@ -161,7 +161,7 @@ class MetaWebhookTest extends TestCase
         Http::fake([
             'https://graph.facebook.com/v22.0/instagram-123/messages' => Http::response(['message_id' => 'ig-outbound-1']),
         ]);
-        $registration = $this->postJson('/api/v1/auth/register', ['name' => 'Instagram User', 'email' => 'instagram@example.com', 'password' => 'password123']);
+        $registration = $this->postJson('/unified-api/v1/auth/register', ['name' => 'Instagram User', 'email' => 'instagram@example.com', 'password' => 'password123']);
         $token = $registration->json('token');
         $user = User::query()->where('email', 'instagram@example.com')->firstOrFail();
         PlatformConnection::create([
@@ -174,7 +174,7 @@ class MetaWebhookTest extends TestCase
         ]);
         $conversation = $user->conversations()->create(['external_id' => 'instagram:customer-123', 'platform' => 'instagram', 'contact_name' => 'Instagram Customer']);
 
-        $response = $this->withToken($token)->postJson('/api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks for reaching out.']);
+        $response = $this->withToken($token)->postJson('/unified-api/v1/conversations/'.$conversation->external_id.'/messages', ['text' => 'Thanks for reaching out.']);
 
         $response->assertOk()->assertJsonPath('message.id', 'instagram:ig-outbound-1');
         Http::assertSent(fn (ClientRequest $request): bool => $request->url() === 'https://graph.facebook.com/v22.0/instagram-123/messages'
@@ -215,7 +215,7 @@ class MetaWebhookTest extends TestCase
         ]);
         $user = User::factory()->create();
 
-        $response = $this->withToken($this->registerToken($user))->postJson('/api/v1/social/whatsapp/credentials', [
+        $response = $this->withToken($this->registerToken($user))->postJson('/unified-api/v1/social/whatsapp/credentials', [
             'access_token' => 'user-whatsapp-token',
             'phone_number_id' => 'phone-123',
             'business_account_id' => 'business-123',
@@ -234,7 +234,7 @@ class MetaWebhookTest extends TestCase
         ]);
         $user = User::factory()->create();
 
-        $response = $this->withToken($this->registerToken($user))->getJson('/api/v1/social/whatsapp/start');
+        $response = $this->withToken($this->registerToken($user))->getJson('/unified-api/v1/social/whatsapp/start');
 
         $response->assertOk();
         $this->assertStringContainsString('/connect/whatsapp?state=', $response->json('authorization_url'));
@@ -252,11 +252,11 @@ class MetaWebhookTest extends TestCase
         ]);
         $user = User::factory()->create();
 
-        $response = $this->withToken($this->registerToken($user))->getJson('/api/v1/social/facebook/start');
+        $response = $this->withToken($this->registerToken($user))->getJson('/unified-api/v1/social/facebook/start');
 
         $query = [];
         parse_str((string) parse_url($response->json('authorization_url'), PHP_URL_QUERY), $query);
-        $this->assertSame(rtrim(request()->getSchemeAndHttpHost(), '/').'/api/v1/social/callback', $query['redirect_uri']);
+        $this->assertSame(rtrim(request()->getSchemeAndHttpHost(), '/').'/unified-api/v1/social/callback', $query['redirect_uri']);
     }
 
     public function test_whatsapp_embedded_signup_exchanges_the_code_subscribes_the_waba_and_saves_the_connection(): void
@@ -300,6 +300,6 @@ class MetaWebhookTest extends TestCase
 
     private function registerToken(User $user): string
     {
-        return $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->json('token');
+        return $this->postJson('/unified-api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->json('token');
     }
 }

@@ -33,10 +33,10 @@ Before testing a real customer message:
 2. Set `APP_URL` to that HTTPS domain. Telegram rejects webhook URLs that are not public HTTPS URLs.
 3. Set `META_APP_SECRET` and `META_WEBHOOK_VERIFY_TOKEN` on the server only.
 4. Set `META_GRAPH_API_VERSION` to the Graph API version supported by the Meta app. The code now reads this from configuration instead of forcing a version in application logic.
-5. Configure the mobile app with `EXPO_PUBLIC_API_URL=https://your-domain.example/api/v1` and rebuild the app.
+5. Configure the mobile app with `EXPO_PUBLIC_API_URL=https://your-domain.example/unified-api/v1` and rebuild the app.
 6. Confirm the API can receive `GET` and `POST` requests at:
-   - `https://your-domain.example/api/v1/webhooks/meta`
-   - `https://your-domain.example/api/v1/webhooks/telegram`
+   - `https://your-domain.example/unified-api/v1/webhooks/meta`
+   - `https://your-domain.example/unified-api/v1/webhooks/telegram`
 7. Use a real queue/worker before production if webhook processing becomes slow. The webhook should acknowledge provider requests quickly and process large payloads durably.
 
 ## 1. Facebook Messenger setup
@@ -46,8 +46,8 @@ Before testing a real customer message:
 1. Create a Meta developer app using a Business app type.
 2. Add the Messenger product.
 3. Add the app domains and privacy policy URL required by Meta.
-4. Configure the app webhook callback as `https://your-domain.example/api/v1/webhooks/meta`.
-5. Add the automatically generated OAuth callback, `https://your-domain.example/api/v1/social/callback`, to the Meta app’s valid OAuth redirect URIs.
+4. Configure the app webhook callback as `https://your-domain.example/unified-api/v1/webhooks/meta`.
+5. Add the automatically generated OAuth callback, `https://your-domain.example/unified-api/v1/social/callback`, to the Meta app’s valid OAuth redirect URIs.
 6. Use the same value as `META_WEBHOOK_VERIFY_TOKEN` when Meta asks for the verify token.
 7. Subscribe to Page messaging events, at minimum message events needed by the inbox.
 8. Request the permissions needed by the current Facebook login flow:
@@ -112,7 +112,7 @@ The production flow should be:
 5. The Laravel API exchanges/validates the result, stores the encrypted token, stores the WABA ID and Phone Number ID, subscribes the app to the WABA, and returns the user to the mobile app.
 6. The user sends a test WhatsApp message and confirms the webhook-to-inbox path.
 
-This flow is implemented. Set `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` on the API, deploy the API over HTTPS, and make sure the Meta app’s Embedded Signup configuration points to the deployed domain. The mobile app will receive the hosted URL from `GET /api/v1/social/whatsapp/start`, open it, and return through `unified://oauth/callback/whatsapp` after the server finishes the connection.
+This flow is implemented. Set `WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID` on the API, deploy the API over HTTPS, and make sure the Meta app’s Embedded Signup configuration points to the deployed domain. The mobile app will receive the hosted URL from `GET /unified-api/v1/social/whatsapp/start`, open it, and return through `unified://oauth/callback/whatsapp` after the server finishes the connection.
 
 The hosted page listens for Meta’s `WA_EMBEDDED_SIGNUP` completion event, waits for both the OAuth code and the WABA/Phone Number IDs, exchanges the short-lived code server-side, subscribes the app to the WABA, and stores the access token using the model’s encrypted cast. The state is random, cached for ten minutes, bound to the signed-in user, and consumed once.
 
@@ -155,7 +155,7 @@ When a customer has recently messaged the business, a normal text reply can be s
 5. In Unified, tap Connect next to Telegram and paste the token.
 6. The API calls `getMe` to verify the token.
 7. The API calls `setWebhook` with:
-   - `https://your-domain.example/api/v1/webhooks/telegram`
+   - `https://your-domain.example/unified-api/v1/webhooks/telegram`
    - a generated `secret_token`
    - message update types
 8. Open the bot chat, tap Start, and send a message.
@@ -182,7 +182,7 @@ Run this separately for each channel:
 
 | Symptom | Most likely cause |
 | --- | --- |
-| Meta says redirect URI mismatch | The Meta app does not contain the automatically generated HTTPS callback, `/api/v1/social/callback`, in its valid OAuth redirect URIs. |
+| Meta says redirect URI mismatch | The Meta app does not contain the automatically generated HTTPS callback, `/unified-api/v1/social/callback`, in its valid OAuth redirect URIs. |
 | Facebook connects but no messages arrive | Page was not subscribed to the app, webhook `messages` field is missing, or App Review/permission access is incomplete. |
 | Instagram connects but no DMs arrive | Account is personal, not linked to the Page, message access is disabled, or `instagram_manage_messages` is not approved. |
 | WhatsApp credential validation fails | Wrong token type, wrong Phone Number ID, WABA not subscribed, or Graph API version mismatch. |

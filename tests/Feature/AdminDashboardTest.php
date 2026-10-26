@@ -134,7 +134,7 @@ class AdminDashboardTest extends TestCase
     {
         $user = User::factory()->create(['email' => 'inactive@example.com', 'is_active' => false]);
 
-        $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])
+        $this->postJson('/unified-api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])
             ->assertUnprocessable()
             ->assertJson(['message' => 'Invalid email or password.']);
     }
